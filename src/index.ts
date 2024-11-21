@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
+import { testCrud } from './usertest.ts'
 
 // import { rateLimiter } from "hono-rate-limiter";
 // import { getConnInfo } from '@hono/node-server/conninfo'
@@ -24,5 +25,6 @@ app.use(logger())
 
 
 app.get('/', (c) => {
+  testCrud()
   return c.json({"msg": "Hello World"})
 })

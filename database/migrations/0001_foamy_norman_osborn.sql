@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `provider_token` text;
