@@ -1,0 +1,308 @@
+// Dating App Database Schema
+// Naming convention: snake_case for all identifiers
+// All timestamps are in UTC
+// All prices are stored in smallest currency unit (cents/paisa)
+// Soft deletes are implemented using deleted_at timestamp
+// JSON arrays are used for flexible data storage
+// UUIDs are used as primary keys for better distribution and security
+
+// https://dbdiagram.io/d/67358da8e9daa85aca67bd3e
+// View: https://dbdiagram.io/d/67358da8e9daa85aca67bd3e
+
+Table users {
+  id uuid [pk]
+  email varchar [unique, null]
+  provider_type varchar [null] // enum: google, apple, facebook, email etc
+  provider_id varchar [null]
+  email_verified_at timestamp [null]
+  password_hash varchar [null] // null if social login
+  is_banned boolean [default: false]
+  ban_reason text [null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  deleted_at timestamp [null]
+  
+  indexes {
+    (email, deleted_at) [name: 'idx_users_email']
+    (provider_type, provider_id, deleted_at) [name: 'idx_users_provider']
+  }
+  
+  Note: 'Stores core user authentication details. Supports multiple authentication providers.'
+}
+
+Table user_profiles {
+  id uuid [pk]
+  user_id uuid [ref: > users.id]
+  profile_name varchar
+  profile_image_url varchar [null]
+  bio text [null]
+  dob date
+  gender varchar // enum: male, female, other
+  country varchar
+  state varchar
+  preferred_language varchar
+  relationship_status varchar // enum: single, married, etc
+  interests jsonb // array of interests
+  hashtags jsonb // array of hashtags
+  looking_for jsonb // array of relationship types
+  personality_traits jsonb // array of traits
+  pet_info text [null]
+  is_drinking boolean [default: false]
+  is_smoking boolean [default: false]
+  is_fitness_enthusiast boolean [default: false]
+  profile_completion_percentage int [default: 0]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  indexes {
+    user_id [name: 'idx_user_profiles_user_id']
+  }
+  
+  Note: 'Comprehensive user profile information including preferences and lifestyle choices'
+}
+
+Table matches {
+  id uuid [pk]
+  user_id_1 uuid [ref: > users.id]
+  user_id_2 uuid [ref: > users.id]
+  match_type varchar // enum: audio, video
+  status varchar // enum: active, ended, reported
+  started_at timestamp [default: `now()`]
+  ended_at timestamp [null]
+  used_premium_features jsonb [null] // array of premium features used in this match
+  
+  indexes {
+    (user_id_1, status) [name: 'idx_matches_user1_status']
+    (user_id_2, status) [name: 'idx_matches_user2_status']
+  }
+  
+  Note: 'Records of user matches including type and duration of interaction'
+}
+
+Table match_reports {
+  id uuid [pk]
+  match_id uuid [ref: > matches.id]
+  reporter_id uuid [ref: > users.id]
+  reported_user_id uuid [ref: > users.id]
+  reason varchar // predefined reason
+  custom_message text [null]
+  status varchar // enum: pending, reviewed, actioned
+  created_at timestamp [default: `now()`]
+  reviewed_at timestamp [null]
+  
+  indexes {
+    (reporter_id, status) [name: 'idx_match_reports_reporter']
+    (reported_user_id, status) [name: 'idx_match_reports_reported']
+  }
+  
+  Note: 'User reported issues during matches for moderation'
+}
+
+Table subscription_plans {
+  id uuid [pk]
+  name varchar
+  description text
+  price int // stored in smallest currency unit
+  currency varchar // USD, INR, etc
+  duration_days int
+  features jsonb // array of included features
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  Note: 'Available premium subscription plans with features and pricing'
+}
+
+Table user_subscriptions {
+  id uuid [pk]
+  user_id uuid [ref: > users.id]
+  plan_id uuid [ref: > subscription_plans.id]
+  status varchar // enum: active, cancelled, expired
+  start_date timestamp
+  end_date timestamp
+  next_billing_date timestamp [null]
+  payment_reference varchar [null]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  indexes {
+    (user_id, status) [name: 'idx_user_subscriptions_status']
+  }
+  
+  Note: 'User subscription details including billing information'
+}
+
+Table coin_packages {
+  id uuid [pk]
+  name varchar
+  coins_amount int
+  price int // stored in smallest currency unit
+  currency varchar // USD, INR, etc
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  Note: 'Available coin packages for purchase'
+}
+
+Table user_coins {
+  id uuid [pk]
+  user_id uuid [ref: > users.id]
+  balance int [default: 0]
+  updated_at timestamp
+  
+  indexes {
+    user_id [name: 'idx_user_coins_user']
+  }
+  
+  Note: 'Current coin balance for users'
+}
+
+Table coin_transactions {
+  id uuid [pk]
+  user_id uuid [ref: > users.id]
+  amount int // positive for credit, negative for debit
+  transaction_type varchar // enum: purchase, reward, usage
+  description text [null] // human readable description of transaction
+  metadata jsonb [null] // any additional transaction metadata
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    (user_id, created_at) [name: 'idx_coin_transactions_user_time']
+  }
+  
+  Note: 'Track all coin transactions including earnings and usage. Metadata stores context-specific information.'
+}
+
+Table reward_activities {
+  id uuid [pk]
+  code varchar [unique] // unique identifier for programmatic reference
+  name varchar
+  description text
+  coins_reward int
+  is_one_time boolean [default: true]
+  is_active boolean [default: true]
+  metadata jsonb [null] // additional configuration if needed
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  indexes {
+    code [name: 'idx_reward_activities_code']
+  }
+  
+  Note: 'Admin configurable reward activities like app store review, profile completion etc'
+}
+
+Table user_rewards {
+  id uuid [pk]
+  user_id uuid [ref: > users.id]
+  activity_id uuid [ref: > reward_activities.id]
+  status varchar // enum: completed, pending, failed
+  completed_at timestamp [null]
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    (user_id, activity_id) [name: 'idx_user_rewards_user_activity']
+  }
+  
+  Note: 'Track user completion of reward activities'
+}
+
+Table static_pages {
+  id uuid [pk]
+  slug varchar [unique]
+  title varchar
+  content text
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  indexes {
+    (slug, is_active) [name: 'idx_static_pages_slug']
+  }
+  
+  Note: 'Content for static pages like about, privacy policy, terms'
+}
+
+Table content_blocks {
+  id uuid [pk]
+  identifier varchar [unique] // e.g., 'onboarding_step_1', 'home_banner'
+  title varchar
+  content jsonb // flexible content structure
+  type varchar // enum: onboarding, banner, etc
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  indexes {
+    (identifier, is_active) [name: 'idx_content_blocks_identifier']
+  }
+  
+  Note: 'Configurable content blocks with flexible JSON content structure'
+}
+
+Table banners {
+  id uuid [pk]
+  title varchar
+  image_url varchar
+  link varchar
+  link_type varchar // enum: internal, external
+  location varchar // enum: home_top, profile_bottom etc
+  sort_order int [default: 0]
+  status varchar // enum: published, draft, trash
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  indexes {
+    (location, status, sort_order) [name: 'idx_banners_location_status']
+  }
+  
+  Note: 'Configurable banners with image and link for different app locations'
+}
+
+Table app_settings {
+  id uuid [pk]
+  key varchar [unique]
+  value jsonb
+  group varchar // logical grouping of settings
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  indexes {
+    (group, key) [name: 'idx_app_settings_group']
+  }
+  
+  Note: 'Global app configuration settings grouped by functionality'
+}
+
+Table label_translations {
+  id uuid [pk]
+  group varchar // e.g., errors, success_messages, ui_elements
+  key varchar
+  value jsonb // different translations as json {en: "Hello", es: "Hola"}
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  indexes {
+    (group, key) [name: 'idx_label_translations_group_key']
+    (group, key) [unique, name: 'uq_label_translations_group_key']
+  }
+  
+  Note: 'Multilingual labels and messages for the app'
+}
+
+Table ad_placements {
+  id uuid [pk]
+  location_identifier varchar [unique] // e.g., 'home_top', 'match_bottom'
+  description text
+  is_enabled boolean [default: true]
+  ad_unit_id varchar [null] // Google Ad Unit ID
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  indexes {
+    (location_identifier, is_enabled) [name: 'idx_ad_placements_location']
+  }
+  
+  Note: 'Configuration for ad placement locations in the app'
+}
