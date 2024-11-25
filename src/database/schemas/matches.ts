@@ -1,5 +1,5 @@
 import { mysqlTable, int, varchar, timestamp, json, index } from 'drizzle-orm/mysql-core';
-import { users } from './users.ts';
+import { users } from './users.js';
 
 export const matches = mysqlTable('matches', {
   id: int('id').autoincrement().primaryKey(),

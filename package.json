@@ -3,8 +3,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "tsc && node dist/server.js",
     "db:generate": "drizzle-kit generate --config=./database/drizzle.config.ts",
-    "db:migrate": "drizzle-kit migrate --config=./database/drizzle.config.ts",
+    "db:migrate": "drizzle-kit generate --config=./database/drizzle.config.ts",
     "db:push": "drizzle-kit push --config=./database/drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config=./database/drizzle.config.ts"
   },
@@ -22,9 +24,5 @@
     "@types/node": "^20.17.6",
     "drizzle-kit": "^0.28.1",
     "tsx": "^4.7.1"
-  },
-  "imports": {
-    "@@/*": "./*",
-    "@/*": "./src/*"
   }
 }

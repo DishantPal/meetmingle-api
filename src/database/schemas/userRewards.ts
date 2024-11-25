@@ -1,6 +1,6 @@
 import { mysqlTable, int, varchar, timestamp, index } from 'drizzle-orm/mysql-core';
-import { users } from './users.ts';
-import { rewardActivities } from './rewardActivities.ts';
+import { users } from './users.js';
+import { rewardActivities } from './rewardActivities.js';
 
 export const userRewards = mysqlTable('user_rewards', {
   id: int('id').autoincrement().primaryKey(),

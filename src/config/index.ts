@@ -7,7 +7,7 @@ const envSchema = z.object({
     
     APP_NAME: z.string(),
     APP_KEY: z.string(),
-    APP_ENV: z.enum(['local', 'production', 'test']),
+    APP_ENV: z.enum(['local', 'production', 'development','test']),
     APP_DEBUG: z.string().transform((val) => val === 'true'),
     APP_TIMEZONE: z.string().default('UTC'),
     APP_URL: z.string().url(),
@@ -23,6 +23,7 @@ const envSchema = z.object({
     // REDIS_HOST: z.string().optional(),
     // REDIS_PASSWORD: z.string().optional(),
     // REDIS_PORT: z.string().optional(),
+    
     // Uncomment if using Mail
     // MAIL_MAILER: z.string().optional(),
     // MAIL_HOST: z.string().optional(),

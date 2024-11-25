@@ -1,6 +1,6 @@
 import { mysqlTable, int, varchar, timestamp, index } from 'drizzle-orm/mysql-core';
-import { users } from './users.ts';
-import { subscriptionPlans } from './subscriptionPlans.ts';
+import { users } from './users.js';
+import { subscriptionPlans } from './subscriptionPlans.js';
 
 export const userSubscriptions = mysqlTable('user_subscriptions', {
   id: int('id').autoincrement().primaryKey(),

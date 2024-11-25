@@ -1,5 +1,5 @@
-import { db } from '../database/connection.ts';
-import { users } from '../database/schemas/index.ts';
+import { db } from './database/connection.js';
+import { users } from './database/schemas/index.js';
 import { eq } from 'drizzle-orm';
 
 // Get all users

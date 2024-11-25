@@ -1,6 +1,7 @@
 import { defineConfig } from 'drizzle-kit';
 
-import { config } from "../config/index.ts"
+import { config } from '@/config/index.js';
+
 
 const dbConfig = {
     host: config.db.host,

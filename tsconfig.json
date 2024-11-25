@@ -1,15 +1,39 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "NodeNext",
-    "strict": true,
-    "verbatimModuleSyntax": true,
-    "allowImportingTsExtensions": true,
-    "skipLibCheck": true,
-    "types": [
-      "node"
-    ],
-    "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx",
-  }
+    // Module and Environment
+    "module": "NodeNext",                 // Use Node's native ESM handling
+    "moduleResolution": "NodeNext",       // Module resolution strategy
+    "target": "ESNext",                   // Latest ECMAScript features
+    
+    // Type Checking
+    "strict": true,                       // Enable all strict type checks
+    "noImplicitAny": true,               // Error on implicit any
+    "strictNullChecks": true,            // Better null/undefined handling
+    "noUncheckedIndexedAccess": true,    // Safer property access
+    
+    // Emit
+    "outDir": "./dist",                  // Output directory
+    "removeComments": true,              // Remove comments in production
+    "sourceMap": false,                  // No source maps in production
+    
+    // Paths
+    "baseUrl": ".",                      // Base directory for paths
+    "paths": {
+      "@/*": ["./src/*"]                 // Path aliases
+    },
+    
+    // Additional Checks
+    "skipLibCheck": true,                // Skip type checking of declaration files
+    "forceConsistentCasingInFileNames": true,  // Ensure consistent file casing
+    
+    // Environment
+    "types": ["node"]                    // Include only node types
+  },
+  "include": ["src/**/*"],               // What to compile
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "dist"
+  ]
 }

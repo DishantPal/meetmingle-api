@@ -1,5 +1,5 @@
 import { mysqlTable, int, timestamp, index } from 'drizzle-orm/mysql-core';
-import { users } from './users.ts';
+import { users } from './users.js';
 
 export const userCoins = mysqlTable('user_coins', {
   id: int('id').autoincrement().primaryKey(),
