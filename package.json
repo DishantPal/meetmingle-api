@@ -2,9 +2,10 @@
   "name": "random-video-call-api",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "tsc && node dist/server.js",
+    "dev": "tsx watch src/index.ts",
+    "clean": "rimraf dist",
+    "build": "rimraf dist && tsc",
+    "start": "npm run build && node dist/index.js",
     "db:generate": "drizzle-kit generate --config=./database/drizzle.config.ts",
     "db:migrate": "drizzle-kit generate --config=./database/drizzle.config.ts",
     "db:push": "drizzle-kit push --config=./database/drizzle.config.ts",
@@ -12,6 +13,8 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
+    "@hono/zod-openapi": "^0.18.0",
+    "@scalar/hono-api-reference": "^0.5.161",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.36.3",
     "hono": "^4.6.10",

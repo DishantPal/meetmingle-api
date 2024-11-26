@@ -1,5 +1,6 @@
 import { mysqlTable, int, varchar, timestamp, boolean, text, json, index } from 'drizzle-orm/mysql-core';
 import { users } from './users.js';
+import { relations } from 'drizzle-orm';
 
 export const userProfiles = mysqlTable('user_profiles', {
   id: int('id').autoincrement().primaryKey(),
@@ -26,4 +27,11 @@ export const userProfiles = mysqlTable('user_profiles', {
   updatedAt: timestamp('updated_at'),
 }, (table) => ({
   userIdIdx: index('idx_user_profiles_user_id').on(table.userId),
+}));
+
+export const usersRelations = relations(users, ({ one }) => ({
+  profile: one(userProfiles, {
+    fields: [users.id],
+    references: [userProfiles.userId],
+  }),
 }));
