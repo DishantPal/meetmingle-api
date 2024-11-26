@@ -1,3 +1,4 @@
+import { config } from "@/config/index.js";
 import { CustomHono } from "@/types/app.js";
 import { apiReference } from "@scalar/hono-api-reference";
 
@@ -13,11 +14,11 @@ const applyDocsMiddleware = (app: CustomHono) => {
 
 
     app.doc('/openapi.json', {
-        servers: [{ url: 'http://localhost:3000' }],
+        servers: [{ url: config.app.url }],
         info: {
-            title: `App API`,
+            title: `${config.app.name} API`,
             version: 'v1.1.1',
-            description: 'This is apps description',
+            description: `This doc contains the apis used in the ${config.app.name} app`,
         },
         openapi: '3.1.0',
         // tags,
@@ -27,7 +28,7 @@ const applyDocsMiddleware = (app: CustomHono) => {
     app.get(
         '/docs',
         apiReference({
-            pageTitle: 'Video Call API Reference',
+            pageTitle: `${config.app.name} API Reference`,
             spec: {
                 url: '/openapi.json',
             },
