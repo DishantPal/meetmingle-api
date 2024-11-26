@@ -21,7 +21,7 @@ const applyDocsMiddleware = (app: CustomHono) => {
         },
         openapi: '3.1.0',
         // tags,
-        security: [{ bearerAuth: [] }],  // Changed from cookieAuth to bearerAuth
+        // security: [{ bearerAuth: [] }],  // Changed from cookieAuth to bearerAuth
     });
 
     app.get(

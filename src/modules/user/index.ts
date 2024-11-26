@@ -9,7 +9,7 @@ export const moduleDetails = {
     description: '`user` is also an entity, but NOT a contextual entity.',
 }
 
-// Test User Route
+// Schema Definitions
 const ParamsSchema = z.object({
     id: z
         .string()
@@ -37,13 +37,16 @@ const UserSchema = z
     })
     .openapi('User')
 
-const route = createRoute({
+// Public Route - Get Basic User Info
+const publicRoute = createRoute({
     method: 'get',
-    path: '/{id}',
+    path: '/basic/{id}',
     request: {
         params: ParamsSchema,
     },
     tags: ['users'],
+    summary: 'Get basic user information (Public)',
+    description: 'Retrieve basic user information without authentication',
     responses: {
         200: {
             content: {
@@ -51,12 +54,42 @@ const route = createRoute({
                     schema: UserSchema,
                 },
             },
-            description: 'Retrieve the user',
+            description: 'Successfully retrieved basic user information',
         },
     },
 })
 
-app.openapi(route, (c) => {
+// Protected Route - Get Detailed User Info
+const protectedRoute = createRoute({
+    method: 'get',
+    path: '/detailed/{id}',
+    request: {
+        params: ParamsSchema,
+    },
+    tags: ['users'],
+    security: [{ bearerAuth: [] }],  // This specifies that this route requires authentication
+    summary: 'Get detailed user information (Protected)',
+    description: 'Retrieve detailed user information - requires authentication',
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: UserSchema,
+                },
+            },
+            description: 'Successfully retrieved detailed user information',
+        },
+        401: {
+            description: 'Unauthorized - Valid authentication credentials are required',
+        },
+        403: {
+            description: 'Forbidden - Insufficient permissions to access this resource',
+        },
+    },
+})
+
+// Public endpoint implementation
+app.openapi(publicRoute, (c) => {
     const { id } = c.req.valid('param')
     return c.json(
         {
@@ -64,7 +97,24 @@ app.openapi(route, (c) => {
             age: 20,
             name: 'Ultra-man',
         },
-        200 // You should specify the status code even if it is 200.
+        200
+    )
+})
+
+// Protected endpoint implementation
+app.openapi(protectedRoute, (c) => {
+    const { id } = c.req.valid('param')
+    return c.json(
+        {
+            id,
+            age: 20,
+            name: 'Ultra-man',
+            // Additional sensitive information that requires authentication
+            email: 'ultraman@example.com',
+            phoneNumber: '+1234567890',
+            addressLine: '123 Hero Street'
+        },
+        200
     )
 })
 
