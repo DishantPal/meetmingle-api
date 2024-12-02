@@ -28,3 +28,5 @@ export const usersRelations = relations(users, ({ one }) => ({
     references: [userProfiles.userId],
   }),
 }));
+
+export type Users = typeof users;

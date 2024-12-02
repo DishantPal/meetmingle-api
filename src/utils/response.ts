@@ -7,6 +7,7 @@ import {
   StatusCodes,
   ReasonPhrases 
 } from 'http-status-codes'
+import { AuthUser } from '@/types/user.js'
 
 // Response Status Constants
 export const RESPONSE_CODES = {
@@ -19,7 +20,6 @@ export const RESPONSE_CODES = {
   RATE_LIMITED: 'RATE_LIMITED',
   CONFLICT: 'CONFLICT',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
-
   ACCOUNT_SUSPENDED: 'ACCOUNT_SUSPENDED',
   DUPLICATE_ENTRY: 'DUPLICATE_ENTRY'
 } as const
@@ -39,10 +39,19 @@ type ValidationError = {
   message: string
 }
 
-type SuccessResponse<T = any> = {
+// Updated Success Response Types
+type BaseSuccessResponse = {
   success: true
   message?: string
+}
+
+type PublicSuccessResponse<T = any> = BaseSuccessResponse & {
   data: T
+}
+
+type AuthSuccessResponse<T = any> = BaseSuccessResponse & {
+  data: T
+  user: AuthUser
 }
 
 // Response Schemas for OpenAPI
@@ -65,11 +74,20 @@ export const ValidationErrorSchema = z.object({
   })
 })
 
-export const SuccessResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
+// Updated Success Response Schemas
+export const PublicSuccessResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
   z.object({
     success: z.literal(true),
     message: z.string().optional(),
     data: dataSchema
+  })
+
+export const AuthSuccessResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
+  z.object({
+    success: z.literal(true),
+    message: z.string().optional(),
+    data: dataSchema,
+    user: z.any() // Replace with proper AuthUserSchema when defined
   })
 
 // Response Helpers for Routes
@@ -89,15 +107,33 @@ export const sendError = (
   return c.json(response, status)
 }
 
+// Public Success Response
 export const sendSuccess = <T>(
   c: Context,
   data: T,
   message?: string,
   status: StatusCode = StatusCodes.OK
 ): Response => {
-  const response: SuccessResponse<T> = {
+  const response: PublicSuccessResponse<T> = {
     success: true,
     data,
+    ...(message && { message })
+  }
+  return c.json(response, status)
+}
+
+// Auth Success Response
+export const sendSuccessWithAuthUser = <T>(
+  c: Context,
+  data: T,
+  user: AuthUser,
+  message?: string,
+  status: StatusCode = StatusCodes.OK
+): Response => {
+  const response: AuthSuccessResponse<T> = {
+    success: true,
+    data,
+    user,
     ...(message && { message })
   }
   return c.json(response, status)
@@ -127,7 +163,8 @@ export const createJsonBody = <T extends z.ZodType>(schema: T) => ({
   }
 })
 
-export const createSuccessResponse = <T extends z.ZodType>(
+// Updated OpenAPI Response Helpers
+export const createPublicSuccessResponse = <T extends z.ZodType>(
   dataSchema: T,
   description: string,
   statusCode: number = StatusCodes.OK
@@ -136,7 +173,22 @@ export const createSuccessResponse = <T extends z.ZodType>(
     description,
     content: {
       'application/json': {
-        schema: SuccessResponseSchema(dataSchema)
+        schema: PublicSuccessResponseSchema(dataSchema)
+      }
+    }
+  }
+})
+
+export const createAuthSuccessResponse = <T extends z.ZodType>(
+  dataSchema: T,
+  description: string,
+  statusCode: number = StatusCodes.OK
+) => ({
+  [statusCode]: {
+    description,
+    content: {
+      'application/json': {
+        schema: AuthSuccessResponseSchema(dataSchema)
       }
     }
   }

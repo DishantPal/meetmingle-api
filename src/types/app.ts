@@ -8,5 +8,4 @@ export type Env = {
     };
 };
 
-
 export class CustomHono<E extends Env = Env> extends OpenAPIHono<E> {}

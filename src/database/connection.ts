@@ -12,20 +12,19 @@ const dbConfig = {
     database: config.db.database,
 }
 
-const pool = mysql.createPool(dbConfig);
+const connection = mysql.createPool(dbConfig);
 
-export const db = drizzle({ client: pool });
+export const db = drizzle(connection);
 
-export const getPool = () => pool;
 
-export async function testConnection() {
-    try {
-        const connection = await pool.getConnection();
-        console.log('Successfully connected to the database.');
-        connection.release();
-        return true;
-    } catch (error) {
-        console.error('Error connecting to the database:', error);
-        return false;
-    }
-}
+// export async function testConnection() {
+//     try {
+//         const connection = await pool.getConnection();
+//         console.log('Successfully connected to the database.');
+//         connection.release();
+//         return true;
+//     } catch (error) {
+//         console.error('Error connecting to the database:', error);
+//         return false;
+//     }
+// }
