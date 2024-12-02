@@ -98,3 +98,48 @@ on invalid session remove cookie + other stuffs
     11. file upload helper
     12. api url dynamic
     13. image url dynamic
+
+
+
+===
+
+Modules:
+
+Auth
+    - signin
+    - userExists (del)
+    - me (only contains user profile)
+    - updateProfile (form data)
+
+User
+    - profile
+    - report
+    - block
+
+Content
+    - onboarding
+    - blocks
+    - pages
+
+Coins
+    - get rewards
+    - get me/transactions
+    - post transaction => server side call with server secret (not user auth)
+    - get me/balance
+
+Subscription
+    - get plans
+    - get me/status
+    - post subscription => server side call with server secret (not user auth)
+    - post subscription/cancel => server side call with server secret (not user auth)
+
+Match (websocket)
+
+Settings
+    - settings
+      - report reasons
+      - personality
+    - countries
+    - languages
+    - countries/{country}/states
+    - relationship-status
