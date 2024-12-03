@@ -67,7 +67,7 @@ const protectedRoute = createRoute({
         params: ParamsSchema,
     },
     tags: ['users'],
-    security: [{ bearerAuth: [] }],  // This specifies that this route requires authentication
+    security: [{ bearerAuth: [] }],
     summary: 'Get detailed user information (Protected)',
     description: 'Retrieve detailed user information - requires authentication',
     responses: {
@@ -84,6 +84,46 @@ const protectedRoute = createRoute({
         },
         403: {
             description: 'Forbidden - Insufficient permissions to access this resource',
+        },
+    },
+})
+
+// New Server-Authenticated Route
+const serverAuthRoute = createRoute({
+    method: 'get',
+    path: '/server/{id}',
+    request: {
+        params: ParamsSchema,
+        headers: z.object({
+            'x-server-secret': z.string().openapi({
+                param: {
+                    name: 'x-server-secret',  // Changed to match the case in the header definition
+                    in: 'header',
+                    required: true,
+                    description: 'Server-level authentication secret'
+                },
+                example: 'supersecret1'
+            })
+        })
+    },
+    tags: ['users'],
+    security: [{ apiKeyHeader: ['x-server-secret'] }],
+    summary: 'Get user information (Server Authentication)',
+    description: 'Retrieve user information - requires server-level authentication',
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: UserSchema,
+                },
+            },
+            description: 'Successfully retrieved user information',
+        },
+        401: {
+            description: 'Unauthorized - Valid server authentication credentials are required',
+        },
+        403: {
+            description: 'Forbidden - Invalid server secret',
         },
     },
 })
@@ -118,4 +158,36 @@ app.openapi(protectedRoute, (c) => {
     )
 })
 
-export default app;
+// Server-authenticated endpoint implementation
+app.openapi(serverAuthRoute, (c) => {
+    const { id } = c.req.valid('param')
+    const serverSecret = c.req.header('x-server-secret')  // Changed to match the case in the schema
+    
+    // Check server secret - in production, use a secure comparison method
+    if (serverSecret !== 'supersecret123') {
+        return c.json(
+            { error: 'Invalid server secret' },
+            403
+        )
+    }
+
+    return c.json(
+        {
+            id,
+            age: 20,
+            name: 'Ultra-man',
+            // Server-level sensitive information
+            internalId: 'INT-123456',
+            systemAccess: 'LEVEL_A',
+            lastSync: new Date().toISOString(),
+            metaData: {
+                createdAt: '2024-01-01T00:00:00Z',
+                modifiedAt: '2024-01-02T00:00:00Z',
+                version: '1.0.0'
+            }
+        },
+        200
+    )
+})
+
+export default app
