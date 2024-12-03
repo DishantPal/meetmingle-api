@@ -1,10 +1,5 @@
-import { userProfiles } from "@/database/schemas/userProfiles.js";
-import { users } from "@/database/schemas/users.js";
-import { InferSelectModel } from "drizzle-orm";
+import { DB, Users, UserProfiles } from "@/database/db.js";
 
-export type DBUser = InferSelectModel<typeof users>;
-export type DBUserProfile = InferSelectModel<typeof userProfiles>;
-
-export interface AuthUser extends DBUser {
-    profile?: DBUserProfile | null;
+export interface AuthUser extends Users {
+    profile?: UserProfiles;
 }

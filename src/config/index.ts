@@ -12,11 +12,7 @@ const envSchema = z.object({
     APP_TIMEZONE: z.string().default('UTC'),
     APP_URL: z.string().url(),
 
-    DB_HOST: z.string(),
-    DB_PORT: z.coerce.number().default(3306),
-    DB_DATABASE: z.string(),
-    DB_USERNAME: z.string(),
-    DB_PASSWORD: z.string(),
+    DATABASE_URL: z.string(),
     
     // Uncomment if using Redis
     // REDIS_CLIENT: z.string().optional(),
@@ -54,11 +50,7 @@ export const config = {
         url: parsedEnv.data.APP_URL,
     },
     db: {
-        host: parsedEnv.data.DB_HOST,
-        port: parsedEnv.data.DB_PORT,
-        database: parsedEnv.data.DB_DATABASE,
-        username: parsedEnv.data.DB_USERNAME,
-        password: parsedEnv.data.DB_PASSWORD,
+        database_url: parsedEnv.data.DATABASE_URL,
     },
     // Uncomment and add Redis configuration if needed
     // redis: {

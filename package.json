@@ -6,27 +6,32 @@
     "clean": "rimraf dist",
     "build": "rimraf dist && tsc",
     "start": "npm run build && node dist/index.js",
-    "db:generate": "drizzle-kit generate --config=./database/drizzle.config.ts",
-    "db:migrate": "drizzle-kit generate --config=./database/drizzle.config.ts",
-    "db:push": "drizzle-kit push --config=./database/drizzle.config.ts",
-    "db:studio": "drizzle-kit studio --config=./database/drizzle.config.ts"
+    "db:make": "tsx ./src/database/migration-generator.ts -p ./src/database/migrations",
+    "db:types": "kysely-codegen --out-file ./src/database/db.d.ts",
+    
+    "migrate": "npx kysely migrate latest",
+    "migrate:rollback": "npx kysely migrate down",
+    "migrate:status": "npx kysely migrate list",
+    "migrate:make": "npx kysely migrate make"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
     "@hono/zod-openapi": "^0.18.0",
     "@scalar/hono-api-reference": "^0.5.161",
     "dotenv": "^16.4.5",
-    "drizzle-orm": "^0.36.3",
     "hono": "^4.6.10",
     "hono-rate-limiter": "^0.4.0",
     "http-status-codes": "^2.3.0",
-    "mysql2": "^3.11.4",
+    "kysely": "^0.27.4",
+    "kysely-codegen": "^0.17.0",
+    "mysql2": "^3.11.5",
     "typescript": "^5.6.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.17.6",
-    "drizzle-kit": "^0.28.1",
+    "commander": "^12.1.0",
+    "kysely-ctl": "^0.9.0",
     "tsx": "^4.7.1"
   }
 }

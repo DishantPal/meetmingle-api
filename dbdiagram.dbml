@@ -145,20 +145,20 @@ Table coin_packages {
   Note: 'Available coin packages for purchase'
 }
 
-Table user_coins {
-  id uuid [pk]
-  user_id uuid [ref: > users.id]
-  balance int [default: 0]
-  updated_at timestamp
+// Table user_coins {
+//   id uuid [pk]
+//   user_id uuid [ref: > users.id]
+//   balance int [default: 0]
+//   updated_at timestamp
   
-  indexes {
-    user_id [name: 'idx_user_coins_user']
-  }
+//   indexes {
+//     user_id [name: 'idx_user_coins_user']
+//   }
   
-  Note: 'Current coin balance for users'
-}
+//   Note: 'Current coin balance for users'
+// }
 
-Table coin_transactions {
+Table user_coin_transactions {
   id uuid [pk]
   user_id uuid [ref: > users.id]
   amount int // positive for credit, negative for debit
@@ -226,7 +226,7 @@ Table static_pages {
 
 Table content_blocks {
   id uuid [pk]
-  identifier varchar [unique] // e.g., 'onboarding_step_1', 'home_banner'
+  purpose varchar [unique] // e.g., 'onboarding_step_1', 'home_banner'
   title varchar
   content jsonb // flexible content structure
   type varchar // enum: onboarding, banner, etc
@@ -235,30 +235,31 @@ Table content_blocks {
   updated_at timestamp
   
   indexes {
-    (identifier, is_active) [name: 'idx_content_blocks_identifier']
+    (purpose, is_active) [name: 'idx_content_blocks_identifier']
   }
   
   Note: 'Configurable content blocks with flexible JSON content structure'
 }
 
-Table banners {
-  id uuid [pk]
-  title varchar
-  image_url varchar
-  link varchar
-  link_type varchar // enum: internal, external
-  location varchar // enum: home_top, profile_bottom etc
-  sort_order int [default: 0]
-  status varchar // enum: published, draft, trash
-  created_at timestamp [default: `now()`]
-  updated_at timestamp
+// phase2
+// Table banners {
+//   id uuid [pk]
+//   title varchar
+//   image_url varchar
+//   link varchar
+//   link_type varchar // enum: internal, external
+//   location varchar // enum: home_top, profile_bottom etc
+//   sort_order int [default: 0]
+//   status varchar // enum: published, draft, trash
+//   created_at timestamp [default: `now()`]
+//   updated_at timestamp
   
-  indexes {
-    (location, status, sort_order) [name: 'idx_banners_location_status']
-  }
+//   indexes {
+//     (location, status, sort_order) [name: 'idx_banners_location_status']
+//   }
   
-  Note: 'Configurable banners with image and link for different app locations'
-}
+//   Note: 'Configurable banners with image and link for different app locations'
+// }
 
 Table app_settings {
   id uuid [pk]
@@ -275,34 +276,36 @@ Table app_settings {
   Note: 'Global app configuration settings grouped by functionality'
 }
 
-Table label_translations {
-  id uuid [pk]
-  group varchar // e.g., errors, success_messages, ui_elements
-  key varchar
-  value jsonb // different translations as json {en: "Hello", es: "Hola"}
-  created_at timestamp [default: `now()`]
-  updated_at timestamp
+// phase2
+// Table label_translations {
+//   id uuid [pk]
+//   group varchar // e.g., errors, success_messages, ui_elements
+//   key varchar
+//   value jsonb // different translations as json {en: "Hello", es: "Hola"}
+//   created_at timestamp [default: `now()`]
+//   updated_at timestamp
   
-  indexes {
-    (group, key) [name: 'idx_label_translations_group_key']
-    (group, key) [unique, name: 'uq_label_translations_group_key']
-  }
+//   indexes {
+//     (group, key) [name: 'idx_label_translations_group_key']
+//     (group, key) [unique, name: 'uq_label_translations_group_key']
+//   }
   
-  Note: 'Multilingual labels and messages for the app'
-}
+//   Note: 'Multilingual labels and messages for the app'
+// }
 
-Table ad_placements {
-  id uuid [pk]
-  location_identifier varchar [unique] // e.g., 'home_top', 'match_bottom'
-  description text
-  is_enabled boolean [default: true]
-  ad_unit_id varchar [null] // Google Ad Unit ID
-  created_at timestamp [default: `now()`]
-  updated_at timestamp
+// phase2
+// Table ad_placements {
+//   id uuid [pk]
+//   location_identifier varchar [unique] // e.g., 'home_top', 'match_bottom'
+//   description text
+//   is_enabled boolean [default: true]
+//   ad_unit_id varchar [null] // Google Ad Unit ID
+//   created_at timestamp [default: `now()`]
+//   updated_at timestamp
   
-  indexes {
-    (location_identifier, is_enabled) [name: 'idx_ad_placements_location']
-  }
+//   indexes {
+//     (location_identifier, is_enabled) [name: 'idx_ad_placements_location']
+//   }
   
-  Note: 'Configuration for ad placement locations in the app'
-}
+//   Note: 'Configuration for ad placement locations in the app'
+// }
