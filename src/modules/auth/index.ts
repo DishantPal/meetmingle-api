@@ -1,117 +1,124 @@
 import { CustomHono } from "@/types/app.js"
-import { createAuthSuccessResponse, createJsonBody, createSuccessResponse } from "@/utils/response.js"
+import { createAuthSuccessResponse, createErrorResponse, createJsonBody, RESPONSE_CODES, sendError, sendSuccessWithAuthUser } from "@/utils/response.js";
 import { createRoute } from "@hono/zod-openapi"
 import { z } from "zod"
-import { findUserWithProfileByEmail } from "./auth.service.js"
+import { createAuthToken, getUserWithProfileByEmail } from "./auth.service.js";
+import { StatusCodes } from "http-status-codes";
+import { AuthUser } from "@/types/user.js";
+import { isAuthenticated } from "@/middlewares/auth/index.js";
 
-export const app = new CustomHono()
+export const app = new CustomHono();
 
 export const moduleDetails = {
     name: 'auth',
-    description: 'Authentication Apis',
+    description: 'These apis are used to deal with the authentication of the user.',
 }
 
-const SignInRequestSchema = z.object({
-    email: z
-        .string()
-        .email()
-        .openapi({
-            example: 'user@example.com',
-        })
+// signin
+const signinRequestBodySchema = z.object({
+    email: z.string().email()
 })
 
-const SignInResponseSchema = z.object({
+const signinResponseBodySchema = z.object({
     token: z.string(),
-    newUser: z.boolean()
+    new_user: z.boolean().default(false),
 })
 
-const signInRoute = createRoute({
+const signinRoute = createRoute({
     method: 'post',
-    path: '/sign-in',
-    request: {
-        body: createJsonBody(SignInRequestSchema)
-    },
+    path: '/signin',
     tags: ['auth'],
-    summary: 'Sign in or create user account',
-    description: 'Sign in with email. Creates new account if user does not exist.',
-    responses: {
-        ...createAuthSuccessResponse(
-            SignInResponseSchema,
-            'Successfully signed in or created account'
-        )
-    }
-})
-
-app.openapi(signInRoute, async (c) => {
-    try {
-        const { email } = await c.req.valid('json')
-
-        let userWithProfile = findUserWithProfileByEmail(email)
-
-        const db = c.get('db')
-        
-        // Find or create user
-        let user = await db.query.users.findFirst({
-            where: eq(users.email, email),
-            with: {
-                profile: true
-            }
-        })
-        
-        if (!user) {
-            // Create new user and profile
-            const result = await db.transaction(async (tx) => {
-                const [newUser] = await tx.insert(users)
-                    .values({
-                        email,
-                        emailVerified: false,
-                        createdAt: new Date(),
-                        updatedAt: new Date()
-                    })
-                    .returning()
-
-                const [profile] = await tx.insert(userProfiles)
-                    .values({
-                        userId: newUser.id,
-                        name: null,
-                        image: null,
-                        createdAt: new Date(),
-                        updatedAt: new Date()
-                    })
-                    .returning()
-
-                return {
-                    ...newUser,
-                    profile
+    summary: 'Sign in (Public)',
+    description: 'Sign in with google account email',
+    // request: {
+    //     body: createJsonBody(signinRequestBodySchema),
+    // },
+    // responses: {
+    //     ...createAuthSuccessResponse(signinResponseBodySchema, 'Successfully signed in', StatusCodes.OK),
+    //     ...createErrorResponse('Invalid request parameters', StatusCodes.BAD_REQUEST),
+    // },
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: signinRequestBodySchema
                 }
-            })
-            
-            user = result
-        }
-        
-        // Generate JWT token
-        const token = await generateJWT(user.id)
-        
-        // Return success response with user
-        return sendSuccessWithAuthUser(
-            c, 
-            { token }, 
-            user as AuthUser,
-            'Successfully signed in'
-        )
-        
-    } catch (error) {
-        if (error instanceof z.ZodError) {
-            return handleZodError(c, error)
-        }
-        console.error('Sign in error:', error)
-        return sendError(
-            c,
-            'Failed to sign in',
-            RESPONSE_CODES.INTERNAL_ERROR,
-            StatusCodes.INTERNAL_SERVER_ERROR
-        )
-    }
+            }
+        },
+    },
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: signinResponseBodySchema
+                }
+            },
+            description: 'Successfully signed in',
+        },
+        400: {
+            description: 'Invalid request parameters',
+        },
+    },
 })
 
-export default app;
+app.openapi(signinRoute, async (c) => {
+    const {email} = c.req.valid('json')
+
+    const authUser = await getUserWithProfileByEmail(email)
+
+    if(!authUser) return sendError(c,'User not found',RESPONSE_CODES.NOT_FOUND,StatusCodes.NOT_FOUND);
+
+    const token = await createAuthToken(authUser)
+
+    const data = {
+        token: token,
+        new_user: false
+    };
+
+    return sendSuccessWithAuthUser(c,data,authUser,'user found');
+})
+
+
+// me
+const meResponseSchema = z.object({
+    user: z.custom<AuthUser>()  // Using the existing AuthUser type
+})
+
+const meRoute = createRoute({
+    method: 'get',
+    path: '/me',
+    tags: ['auth'],
+    summary: 'Get Current User',
+    description: 'Get details of the currently logged in user',
+    security: [{ Bearer: [] }],
+    middleware: [isAuthenticated],  // Adding middleware here
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: meResponseSchema
+                }
+            },
+            description: 'Successfully retrieved user details',
+        },
+        401: {
+            description: 'Unauthorized - Invalid or missing token',
+        },
+        403: {
+            description: 'Forbidden - User is banned',
+        }
+    },
+})
+
+app.openapi(meRoute, async (c) => {
+    const user = c.get('user')
+    return c.json({ user })
+})
+
+
+// me/update-profile
+
+
+
+
+export default app

@@ -3,11 +3,12 @@ import { StatusCode } from 'hono/utils/http-status'
 import { z } from 'zod'
 import { ZodError } from 'zod'
 import { HTTPException } from 'hono/http-exception'
-import { 
+import {
   StatusCodes,
-  ReasonPhrases 
+  ReasonPhrases
 } from 'http-status-codes'
 import { AuthUser } from '@/types/user.js'
+import { getAuthUser } from './getAuthUser.js'
 
 // Response Status Constants
 export const RESPONSE_CODES = {
@@ -90,6 +91,20 @@ export const AuthSuccessResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
     user: z.any() // Replace with proper AuthUserSchema when defined
   })
 
+
+// Common throwable error
+export const CustomZodError = (field: string, message: string) => {
+  return new ZodError([{
+      code: 'custom',
+      path: [field],
+      message: message
+  }])
+}
+
+export const CustomHTTPError = (code: StatusCode, message: string) => {
+  return new HTTPException(code, { message })
+}
+
 // Response Helpers for Routes
 export const sendError = (
   c: Context,
@@ -97,7 +112,7 @@ export const sendError = (
   code: ResponseCode,
   status: StatusCode = StatusCodes.BAD_REQUEST,
   data?: Record<string, any>
-): Response => {
+) => {
   const response: ErrorResponse = {
     success: false,
     message,
@@ -113,7 +128,7 @@ export const sendSuccess = <T>(
   data: T,
   message?: string,
   status: StatusCode = StatusCodes.OK
-): Response => {
+) => {
   const response: PublicSuccessResponse<T> = {
     success: true,
     data,
@@ -126,10 +141,12 @@ export const sendSuccess = <T>(
 export const sendSuccessWithAuthUser = <T>(
   c: Context,
   data: T,
-  user: AuthUser,
   message?: string,
   status: StatusCode = StatusCodes.OK
-): Response => {
+) => {
+
+  const user: AuthUser = getAuthUser();
+
   const response: AuthSuccessResponse<T> = {
     success: true,
     data,
@@ -139,6 +156,7 @@ export const sendSuccessWithAuthUser = <T>(
   return c.json(response, status)
 }
 
+// Used in the global error handler. In general app throw ZodError
 export const handleZodError = (c: Context, error: ZodError): Response => {
   const validationErrors: ValidationError[] = error.errors.map(err => ({
     field: err.path.join('.'),

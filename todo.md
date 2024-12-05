@@ -107,7 +107,6 @@ Modules:
 
 Auth
     - signin
-    - userExists (del)
     - me (only contains user profile)
     - updateProfile (form data)
 

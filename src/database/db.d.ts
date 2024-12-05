@@ -87,7 +87,7 @@ export interface Users {
   password_hash: string | null;
   provider_id: string | null;
   provider_type: string | null;
-  updated_at: Date;
+  updated_at: Generated<Date>;
 }
 
 export interface DB {

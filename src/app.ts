@@ -4,7 +4,7 @@ import applyGlobalMiddlewares from './middlewares/index.js'
 import { setupRoutes } from './routes.js'
 import { CustomHono, Env } from './types/app.js'
 
-const baseApp = new CustomHono<Env>()
+const baseApp = new CustomHono<Env>
 
 applyGlobalMiddlewares(baseApp)
 

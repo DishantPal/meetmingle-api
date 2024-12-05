@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { jwt } from 'hono/jwt'
 import { z } from 'zod'
 
 // Define a schema for environment variables
@@ -13,6 +14,8 @@ const envSchema = z.object({
     APP_URL: z.string().url(),
 
     DATABASE_URL: z.string(),
+
+    JWT_SECRET: z.string()
     
     // Uncomment if using Redis
     // REDIS_CLIENT: z.string().optional(),
@@ -52,6 +55,9 @@ export const config = {
     db: {
         database_url: parsedEnv.data.DATABASE_URL,
     },
+    jwt: {
+        secret: parsedEnv.data.JWT_SECRET
+    }
     // Uncomment and add Redis configuration if needed
     // redis: {
     //     client: parsedEnv.data.REDIS_CLIENT,

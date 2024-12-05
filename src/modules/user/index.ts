@@ -1,10 +1,12 @@
-import { CustomHono } from "@/types/app.js"
+import { CustomHono, Env } from "@/types/app.js"
 import { createRoute } from "@hono/zod-openapi"
-import { z } from "zod"
+import { z, ZodError } from "zod"
 import { mkdir, writeFile, chmod } from 'fs/promises'
 import { dirname, join } from 'path'
+import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js"
+import { createJsonBody, createPublicSuccessResponse, CustomZodError, sendSuccess } from "@/utils/response.js"
 
-export const app = new CustomHono()
+export const app = CustomHonoAppFactory()
 
 export const moduleDetails = {
     name: 'users',
@@ -164,7 +166,7 @@ app.openapi(protectedRoute, (c) => {
 app.openapi(serverAuthRoute, (c) => {
     const { id } = c.req.valid('param')
     const serverSecret = c.req.header('x-server-secret')  // Changed to match the case in the schema
-    
+
     // Check server secret - in production, use a secure comparison method
     if (serverSecret !== 'supersecret123') {
         return c.json(
@@ -266,7 +268,7 @@ const updateProfileRoute = createRoute({
 // Update profile endpoint implementation
 app.openapi(updateProfileRoute, async (c) => {
     const { id } = c.req.valid('param')
-    
+
     // Get form data
     const formData = await c.req.formData()
     const formDataObj = {
@@ -281,7 +283,7 @@ app.openapi(updateProfileRoute, async (c) => {
         const profilePicture = validatedData.profilePicture as File | null
 
         let profilePictureUrl = ''
-        
+
         if (profilePicture) {
             // Validate file type
             const fileType = profilePicture.type
@@ -291,10 +293,10 @@ app.openapi(updateProfileRoute, async (c) => {
 
             // Get file extension
             const fileExt = profilePicture.name.split('.').pop()?.toLowerCase() || 'png'
-            
+
             // Get base upload directory with fallback
             const baseUploadDir = process.env.UPLOAD_DIR || './storage'
-            
+
             // Construct file path and URL
             const fileName = `${validatedData.username}.${fileExt}`
             const filePath = join(baseUploadDir, 'userprofile', fileName)
@@ -304,7 +306,7 @@ app.openapi(updateProfileRoute, async (c) => {
             try {
                 // Convert File to ArrayBuffer
                 const arrayBuffer = await profilePicture.arrayBuffer()
-                
+
                 // Create directory if it doesn't exist
                 await mkdir(dirname(filePath), { recursive: true })
 
@@ -314,7 +316,7 @@ app.openapi(updateProfileRoute, async (c) => {
 
                 // Set file permissions (optional, but recommended)
                 await chmod(filePath, 0o644)
-                
+
                 profilePictureUrl = fileUrl
             } catch (error) {
                 console.error('File system error:', error)
@@ -337,4 +339,376 @@ app.openapi(updateProfileRoute, async (c) => {
 })
 
 
-export default app
+// export const createUserRoute = createRoute({
+//     method: 'post',
+//     path: '/users',
+//     request: {
+//         body: {
+//             content: {
+//                 'application/json': {
+//                     schema: z.object({
+//                         name: z.string().min(2, "Name must be at least 2 characters"),
+//                         email: z.string().email("Invalid email format"),
+//                         age: z.preprocess(
+//                             (val) => parseInt(val as string, 10),
+//                             z.number().min(18, "Must be at least 18 years old")
+//                         )
+//                     })
+//                 }
+//             }
+//         }
+//     },
+//     responses: {
+//         200: {
+//             content: {
+//                 'application/json': {
+//                     schema: z.object({
+//                         success: z.boolean(),
+//                         data: z.object({
+//                             user: z.object({
+//                                 id: z.string(),
+//                                 name: z.string(),
+//                                 email: z.string(),
+//                                 age: z.number()
+//                             })
+//                         })
+//                     })
+//                 }
+//             },
+//             description: 'User created successfully'
+//         }
+//     },
+//     tags: ['users'],
+//     summary: 'Create new user'
+// })
+
+// app.openapi(createUserRoute, async (c) => {
+//     // This gives us the validated data
+//     const data = c.req.valid('json')
+
+//     const newUser = {
+//         id: crypto.randomUUID(),
+//         ...data
+//     }
+
+//     return c.json({
+//         success: true,
+//         data: {
+//             user: newUser
+//         }
+//     })
+// })
+
+export const createUserRoute = createRoute({
+    method: 'post',
+    path: '/users',
+    request: {
+        body: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        name: z.string().min(2, "Name must be at least 2 characters again"),
+                        email: z.string().email("Invalid email format"),
+                        age: z.preprocess(
+                            (val) => parseInt(val as string, 10),
+                            z.number().min(18, "Must be at least 18 years old")
+                        )
+                    })
+                }
+            }
+        }
+    },
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        success: z.boolean(),
+                        data: z.object({
+                            user: z.object({
+                                id: z.string(),
+                                name: z.string(),
+                                email: z.string(),
+                                age: z.number()
+                            })
+                        })
+                    })
+                }
+            },
+            description: 'User created successfully'
+        },
+        400: {
+            description: 'Validation Error',
+            content: {
+                'application/json': {
+                    schema: z.object({
+                        success: z.boolean(),
+                        error: z.string(),
+                        details: z.array(z.any())
+                    })
+                }
+            }
+        }
+    },
+    tags: ['users'],
+    summary: 'Create new user'
+})
+
+app.openapi(createUserRoute, async (c): Promise<any> => {
+    try {
+        console.log('qeqeqwe');
+        // Try manual validation first to see the error
+        const body = await c.req.json()
+        const schema = z.object({
+            name: z.string().min(2, "Name must be at least 2 characters again"),
+            email: z.string().email("Invalid email format"),
+            age: z.preprocess(
+                (val) => parseInt(val as string, 10),
+                z.number().min(18, "Must be at least 18 years old")
+            )
+        })
+
+        console.log('Received body:', body)
+        const result = schema.safeParse(body)
+
+        if (!result.success) {
+            console.log('Validation failed:', result.error)
+            throw result.error
+        }
+
+        // If we get here, use the validated data from Hono
+        const data = c.req.valid('json')
+        console.log('Validated data:', data)
+
+        const newUser = {
+            id: crypto.randomUUID(),
+            ...data
+        }
+
+        return c.json({
+            success: true,
+            data: {
+                user: newUser
+            }
+        })
+    } catch (error) {
+        console.log('Caught error in handler:', error)
+        throw error
+    }
+}, (result, c) => {
+    console.log("🚀 ~ app.openapi ~ result, c:", result, c)
+    if (!result.success) {
+        return c.json(
+            {
+                success: false,
+                error: 'this is error',
+                details: 'test',
+            },
+            400
+        )
+    }
+})
+
+
+const ParamsSchema1 = z.object({
+    id: z
+        .string()
+        .min(3)
+        .openapi({
+            param: {
+                name: 'id',
+                in: 'path',
+            },
+            example: '1212121',
+        }),
+})
+
+const BodySchema1 = z
+    .object({
+        name: z.string().openapi({
+            example: 'John Doe',
+        }),
+        age: z.number().min(18).openapi({
+            example: 42,
+        }),
+    })
+
+const UserSchema1 = z
+    .object({
+        id: z.string().openapi({
+            example: '123',
+        }),
+        name: z.string().openapi({
+            example: 'John Doe',
+        }),
+        age: z.number().openapi({
+            example: 42,
+        }),
+    })
+    .openapi('User')
+
+const ErrorSchema1 = z.object({
+    code: z.number().openapi({
+        example: 400,
+    }),
+    message: z.string().openapi({
+        example: 'Bad Request',
+    }),
+})
+
+const customRoute = createRoute({
+    method: 'post',
+    path: '/custom/{id}',
+    request: {
+        params: ParamsSchema1,
+        body: {
+            content: {
+                'application/json': {
+                    schema: BodySchema1,
+                },
+            }
+        }
+    },
+    responses: {
+        200: {
+            content: {
+                'application/json': {
+                    schema: UserSchema1,
+                },
+            },
+            description: 'Retrieve the user',
+        },
+        400: {
+            content: {
+                'application/json': {
+                    schema: ErrorSchema1,
+                },
+            },
+            description: 'Returns an error',
+        },
+    },
+});
+
+app.openapi(
+    customRoute,
+    (c) => {
+        const { id } = c.req.valid('param')
+
+        const { name, age } = c.req.valid('json')
+
+        // Custom validation check
+        if (name.toLowerCase().includes('margret') && age < 30) {
+            // Create a ZodError manually
+            throw CustomZodError('age', "People with 'margret' in their name must be 18 or older")
+        }
+
+        return c.json(
+            {
+                id,
+                age: age,
+                name: name,
+            },
+            200
+        )
+    },
+)
+
+
+const ParamsSchema2 = z.object({
+    id: z
+        .string()
+        .min(3)
+        .openapi({
+            param: {
+                name: 'id',
+                in: 'path',
+            },
+            example: '1212121',
+        }),
+})
+
+const BodySchema2 = z
+    .object({
+        name: z.string().openapi({
+            example: 'John Doe',
+        }),
+        age: z.number().min(18).openapi({
+            example: 42,
+        }),
+    })
+
+const UserSchema2 = z
+    .object({
+        id: z.string().openapi({
+            example: '123',
+        }),
+        name: z.string().openapi({
+            example: 'John Doe',
+        }),
+        age: z.number().openapi({
+            example: 42,
+        }),
+    })
+    .openapi('User')
+
+
+const customRoute2 = createRoute({
+    method: 'post',
+    path: '/custom2/{id}',
+    request: {
+        params: ParamsSchema2,
+        // body: {
+        //     content: {
+        //         'application/json': {
+        //             schema: BodySchema2,
+        //         },
+        //     }
+        // }
+        body: createJsonBody(BodySchema2)
+    },
+    responses: {
+        ...createPublicSuccessResponse(UserSchema2, 'Retrieve the user'),
+        // 200: {
+        //     content: {
+        //         'application/json': {
+        //             schema: UserSchema2,
+        //         },
+        //     },
+        //     description: 'Retrieve the user',
+        // },
+        // 400: {
+        //     content: {
+        //         'application/json': {
+        //             schema: ErrorSchema2,
+        //         },
+        //     },
+        //     description: 'Returns an error',
+        // },
+    },
+});
+
+app.openapi(
+    customRoute2,
+    (c) => {
+        const { id } = c.req.valid('param')
+
+        const { name, age } = c.req.valid('json')
+
+        // Custom validation check
+        if (name.toLowerCase().includes('margret') && age < 30) {
+            // Create a ZodError manually
+            throw CustomZodError('age', "People with 'margret' in their name must be 18 or older")
+        }
+
+        const data = {
+            id,
+            age: age,
+            name: name,
+        }
+
+        return sendSuccess(c, data, 'Retrieve the user')
+    },
+)
+
+
+// export default app
