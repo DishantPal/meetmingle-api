@@ -4,7 +4,10 @@ import { z, ZodError } from "zod"
 import { mkdir, writeFile, chmod } from 'fs/promises'
 import { dirname, join } from 'path'
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js"
-import { createJsonBody, createPublicSuccessResponse, CustomZodError, sendSuccess } from "@/utils/response.js"
+import { createJsonBody, createPublicSuccessResponse, CustomHTTPError, CustomZodError, defaultResponses, PublicSuccessResponseSchema, sendError, sendSuccess, sendSuccessWithAuthUser } from "@/utils/response.js"
+import { Context, TypedResponse } from "hono"
+import { StatusCode } from "hono/utils/http-status"
+import { isAuthenticated } from "@/middlewares/auth/index.js"
 
 export const app = CustomHonoAppFactory()
 
@@ -495,19 +498,21 @@ app.openapi(createUserRoute, async (c): Promise<any> => {
         console.log('Caught error in handler:', error)
         throw error
     }
-}, (result, c) => {
-    console.log("🚀 ~ app.openapi ~ result, c:", result, c)
-    if (!result.success) {
-        return c.json(
-            {
-                success: false,
-                error: 'this is error',
-                details: 'test',
-            },
-            400
-        )
-    }
-})
+}
+// , (result, c) => {
+//     console.log("🚀 ~ app.openapi ~ result, c:", result, c)
+//     if (!result.success) {
+//         return c.json(
+//             {
+//                 success: false,
+//                 error: 'this is error',
+//                 details: 'test',
+//             },
+//             400
+//         )
+//     }
+// }
+)
 
 
 const ParamsSchema1 = z.object({
@@ -613,7 +618,7 @@ app.openapi(
     },
 )
 
-
+// Example 2
 const ParamsSchema2 = z.object({
     id: z
         .string()
@@ -651,39 +656,55 @@ const UserSchema2 = z
     })
     .openapi('User')
 
+// 1. First, your base response schema definition
+// const successResponse = <T extends z.ZodType>(dataSchema: T) => {
+//     return z.object({
+//         success: z.literal(true),
+//         data: dataSchema,
+//         message: z.string().optional()
+//     })
+// }
 
+// const sendSuccessResponse = <T extends z.ZodType, S extends StatusCode>(
+//     c: Context<Env>, 
+//     data: z.infer<T>,
+//     message?: string,
+//     status?: S
+// ) => {
+//     return c.json({
+//         success: true as const,
+//         data,
+//         ...(message && { message })
+//     }, status || 200);
+// }
+
+const createSuccessRoute = <T extends z.ZodType>(
+    schema: T,
+    description: string
+) => ({
+    content: {
+        'application/json': {
+            // schema: successResponse(schema),
+            schema: PublicSuccessResponseSchema(schema),
+        },
+    },
+    description: description,
+});
+
+// 3. Usage in your route
 const customRoute2 = createRoute({
     method: 'post',
     path: '/custom2/{id}',
+    middleware: [isAuthenticated] as const,
+    security: [{ bearerAuth: [] }],
     request: {
         params: ParamsSchema2,
-        // body: {
-        //     content: {
-        //         'application/json': {
-        //             schema: BodySchema2,
-        //         },
-        //     }
-        // }
         body: createJsonBody(BodySchema2)
     },
     responses: {
-        ...createPublicSuccessResponse(UserSchema2, 'Retrieve the user'),
-        // 200: {
-        //     content: {
-        //         'application/json': {
-        //             schema: UserSchema2,
-        //         },
-        //     },
-        //     description: 'Retrieve the user',
-        // },
-        // 400: {
-        //     content: {
-        //         'application/json': {
-        //             schema: ErrorSchema2,
-        //         },
-        //     },
-        //     description: 'Returns an error',
-        // },
+        200: createSuccessRoute(UserSchema2, 'Retrieve the user'),
+        201: createSuccessRoute(UserSchema2, 'Creates the user'),
+        ...defaultResponses
     },
 });
 
@@ -691,24 +712,26 @@ app.openapi(
     customRoute2,
     (c) => {
         const { id } = c.req.valid('param')
-
         const { name, age } = c.req.valid('json')
 
-        // Custom validation check
         if (name.toLowerCase().includes('margret') && age < 30) {
-            // Create a ZodError manually
             throw CustomZodError('age', "People with 'margret' in their name must be 18 or older")
+        }
+
+        if (name.split(' ').length > 2) {
+            // You would need subscription to add name > 3 words
+            // return sendError(c, )
+            throw CustomHTTPError(401, 'Invalid name format')
         }
 
         const data = {
             id,
-            age: age,
-            name: name,
+            age,
+            name,
         }
 
-        return sendSuccess(c, data, 'Retrieve the user')
+        // return sendSuccessResponse<typeof UserSchema2, 201>(c, data, 'Retrieve the user', 201);
+        // return sendSuccess<typeof UserSchema2, 201>(c, data, 'Retrieve the user', 201);
+        return sendSuccessWithAuthUser<typeof UserSchema2, 201>(c, data, 'Retrieve the user', 201);
     },
 )
-
-
-// export default app

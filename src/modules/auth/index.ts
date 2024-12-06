@@ -75,7 +75,7 @@ app.openapi(signinRoute, async (c) => {
         new_user: false
     };
 
-    return sendSuccessWithAuthUser(c,data,authUser,'user found');
+    return sendSuccessWithAuthUser(c,data,'user found');
 })
 
 

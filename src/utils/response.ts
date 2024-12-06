@@ -9,6 +9,7 @@ import {
 } from 'http-status-codes'
 import { AuthUser } from '@/types/user.js'
 import { getAuthUser } from './getAuthUser.js'
+import { Env } from '@/types/app.js'
 
 // Response Status Constants
 export const RESPONSE_CODES = {
@@ -122,38 +123,34 @@ export const sendError = (
   return c.json(response, status)
 }
 
-// Public Success Response
-export const sendSuccess = <T>(
-  c: Context,
-  data: T,
+export const sendSuccess = <T extends z.ZodType, S extends StatusCode>(
+  c: Context<Env>, 
+  data: z.infer<T>,
   message?: string,
-  status: StatusCode = StatusCodes.OK
+  status?: S
 ) => {
-  const response: PublicSuccessResponse<T> = {
-    success: true,
-    data,
-    ...(message && { message })
-  }
-  return c.json(response, status)
+  return c.json({
+      success: true as const,
+      data,
+      ...(message && { message })
+  }, status || 200);
 }
 
-// Auth Success Response
-export const sendSuccessWithAuthUser = <T>(
-  c: Context,
-  data: T,
+export const sendSuccessWithAuthUser = <T extends z.ZodType, S extends StatusCode>(
+  c: Context<Env>,
+  data: z.infer<T>,
   message?: string,
-  status: StatusCode = StatusCodes.OK
+  status?: S
 ) => {
 
-  const user: AuthUser = getAuthUser();
+  const user = c.get('user');
 
-  const response: AuthSuccessResponse<T> = {
-    success: true,
-    data,
-    user,
-    ...(message && { message })
-  }
-  return c.json(response, status)
+  return c.json({
+      success: true as const,
+      data,
+      user,
+      ...(message && { message })
+  }, status || 200);
 }
 
 // Used in the global error handler. In general app throw ZodError
