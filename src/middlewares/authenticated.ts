@@ -49,15 +49,16 @@ export const isAuthenticated = async (c: Context<Env>, next: Next) => {
         throw new AppError(StatusCodes.UNAUTHORIZED, ERROR_CODES.UNAUTHORIZED, 'Authorization header missing or invalid');
     }
 
-    // const decoded = await decodeAuthToken(token)
+    const decoded = await decodeAuthToken(token)
 
-    // if (!decoded?.user?.id) {
-    //     throw new AppError(StatusCodes.UNAUTHORIZED, ERROR_CODES.UNAUTHORIZED, 'Authorization header missing or invalid');
-    // }
+    if (!decoded?.user?.id) {
+        throw new AppError(StatusCodes.UNAUTHORIZED, ERROR_CODES.UNAUTHORIZED, 'Authorization header missing or invalid');
+    }
 
-    // const user = await getUserWithProfileByUserId(Number(decoded.user.id))
+    const user = await getUserWithProfileByUserId(Number(decoded.user.id))
     
-    const user = await getUserWithProfileByUserId(Number(1))
+    // To Test
+    // const user = await getUserWithProfileByUserId(Number(1))
 
     if (!user) {
         throw new AppError(StatusCodes.NOT_FOUND, ERROR_CODES.USER_NOT_FOUND, 'User not found');

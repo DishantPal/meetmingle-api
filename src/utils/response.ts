@@ -206,7 +206,7 @@ export const createJsonBody = <T extends z.ZodType>(schema: T) => ({
   }
 })
 
-const createSuccessRouteDefinition = <T extends z.ZodType>(
+export const createSuccessRouteDefinition = <T extends z.ZodType>(
   schema: T,
   description: string
 ) => ({

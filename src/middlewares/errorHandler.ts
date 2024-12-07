@@ -18,8 +18,13 @@ export const notFoundHandler = (c: Context<Env>) => {
 export const errorHandler = (err: Error, c: Context<Env>) => {
   const requestId = c.get('requestId');
 
-  // Log non-validation errors
-  if (!(err instanceof ValidationError)) {
+  const isSystemError = (err instanceof AppError && (
+    err.code === ERROR_CODES.INTERNAL_ERROR ||
+    err.code === ERROR_CODES.SERVICE_UNAVAILABLE ||
+    err.code === ERROR_CODES.DATABASE_ERROR
+  )) || !(err instanceof AppError || err instanceof ValidationError || err instanceof ZodError);
+  // Log system errors or technical errors
+  if (isSystemError) {
     console.error('Error:', {
       requestId,
       code: err instanceof AppError ? err.code : 'UNKNOWN',
@@ -52,34 +57,3 @@ export const errorHandler = (err: Error, c: Context<Env>) => {
 
   return c.json(internalError.toResponse(requestId), internalError.statusCode);
 }
-
-// export const errorHandler = (err: Error, c: Context) => {
-//   console.error('Error:', {
-//     message: err.message,
-//     stack: err.stack,
-//     path: c.req.path
-//   })
-
-//   if (err instanceof ZodError) {
-//     return handleZodError(c, err)
-//   }
-
-//   if (err instanceof HTTPException) {
-//     return sendError(
-//       c,
-//       err.message,
-//       RESPONSE_CODES.INTERNAL_ERROR,
-//       err.status as StatusCode
-//     )
-//   }
-
-//   return sendError(
-//     c,
-//     'Internal server error',
-//     RESPONSE_CODES.INTERNAL_ERROR,
-//     StatusCodes.INTERNAL_SERVER_ERROR,
-//     process.env.NODE_ENV === 'development'
-//       ? { error: err.message }
-//       : undefined
-//   )
-// }

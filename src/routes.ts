@@ -4,8 +4,8 @@ import { app as authRoutes } from './modules/auth/index.js'
 
 export function setupRoutes(app: CustomHono<Env>) {
   // Register routes
-  app.route('/users', testUserRoutes)
-  // app.route('/auth', authRoutes)
+  // app.route('/users', testUserRoutes)
+  app.route('/auth', authRoutes)
 
   return app
 }

@@ -72,7 +72,7 @@ export interface UserProfiles {
   profile_name: string | null;
   relationship_status: string | null;
   state: string | null;
-  updated_at: Date;
+  updated_at: Generated<Date>;
   user_id: number;
 }
 
