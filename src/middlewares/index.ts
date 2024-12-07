@@ -4,6 +4,7 @@ import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
+import { requestId } from "./requestId.js";
 
 // const app = new CustomHono();
 
@@ -17,6 +18,9 @@ const applyGlobalMiddlewares = (app: CustomHono) => {
 
     // Logger
     app.use('*', logger());
+
+    // Request Id
+    app.use('*', requestId);
 
 
     // Cors Middleware

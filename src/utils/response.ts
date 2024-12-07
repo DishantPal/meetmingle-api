@@ -1,73 +1,154 @@
+/**
+ * @file response.ts
+ * @description Central utility for handling API responses and errors in a consistent format.
+ * This file provides a comprehensive system for API response handling, including:
+ * 
+ * Core Features:
+ * - Standardized error and success response formats
+ * - Type-safe error handling with custom error classes
+ * - Zod-based response validation
+ * - OpenAPI documentation helpers
+ * 
+ * Key Exports:
+ * - ERROR_CODES: Enumeration of all possible error types
+ * - AppError: Base error class for application-wide error handling
+ * - ValidationError: Specialized error class for handling Zod validation failures
+ * - Response Schemas: Zod schemas for validating response structures
+ * - Response Functions: Utilities for sending consistent success/error responses
+ * - OpenAPI Helpers: Functions for generating OpenAPI documentation
+ * 
+ * Usage:
+ * - For success responses: use sendSuccess() or sendSuccessWithAuthUser()
+ * - For error handling: throw new AppError() or ValidationError()
+ * - For OpenAPI docs: use defaultResponses and createSuccessRouteDefinition()
+ * 
+ * All responses follow the format:
+ * {
+ *   success: boolean
+ *   message?: string
+ *   data?: any
+ *   code?: ErrorCode     // Only for error responses
+ *   requestId?: string   // Only for error responses
+ *   user?: AuthUser      // Only for authenticated success responses
+ * }
+ */
+
 import { Context } from 'hono'
 import { StatusCode } from 'hono/utils/http-status'
 import { z } from 'zod'
 import { ZodError } from 'zod'
-import { HTTPException } from 'hono/http-exception'
-import {
-  StatusCodes,
-  ReasonPhrases
-} from 'http-status-codes'
+import { StatusCodes } from 'http-status-codes'
 import { AuthUser } from '@/types/user.js'
-import { getAuthUser } from './getAuthUser.js'
 import { Env } from '@/types/app.js'
 
-// Response Status Constants
-export const RESPONSE_CODES = {
-  SUCCESS: 'SUCCESS',
+
+// Error Codes
+export const ERROR_CODES = {
+  // Validation
   VALIDATION_ERROR: 'VALIDATION_ERROR',
+
+  // Auth
   UNAUTHORIZED: 'UNAUTHORIZED',
   FORBIDDEN: 'FORBIDDEN',
-  NOT_FOUND: 'NOT_FOUND',
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+
+  // Business Logic
+  INSUFFICIENT_FUNDS: 'INSUFFICIENT_FUNDS',
   SUBSCRIPTION_REQUIRED: 'SUBSCRIPTION_REQUIRED',
-  RATE_LIMITED: 'RATE_LIMITED',
-  CONFLICT: 'CONFLICT',
+  RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
+  DUPLICATE_RESOURCE: 'DUPLICATE_RESOURCE',
+
+  // Technical/External Services
   INTERNAL_ERROR: 'INTERNAL_ERROR',
-  ACCOUNT_SUSPENDED: 'ACCOUNT_SUSPENDED',
-  DUPLICATE_ENTRY: 'DUPLICATE_ENTRY'
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  DATABASE_ERROR: 'DATABASE_ERROR'
 } as const
 
-export type ResponseCode = typeof RESPONSE_CODES[keyof typeof RESPONSE_CODES]
+export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES]
 
-// Response Types
 type ErrorResponse = {
   success: false
   message: string
-  code: ResponseCode
+  code: ErrorCode
+  requestId: string
   data?: Record<string, any>
 }
 
-type ValidationError = {
+type ValidationErrorItem = {
   field: string
   message: string
 }
 
-// Updated Success Response Types
-type BaseSuccessResponse = {
+type SuccessResponse<T = any> = {
   success: true
   message?: string
+  data?: T
+  user?: AuthUser
 }
 
-type PublicSuccessResponse<T = any> = BaseSuccessResponse & {
-  data: T
+// Base Error Class
+export class AppError extends Error {
+  constructor(
+    // public statusCode: number,
+    public statusCode: StatusCode,
+    public code: ErrorCode,
+    message: string,
+    public data?: Record<string, any>
+  ) {
+    super(message);
+    Object.setPrototypeOf(this, AppError.prototype);
+  }
+
+  public toResponse(requestId: string): ErrorResponse {
+    return {
+      success: false,
+      message: this.message,
+      code: this.code,
+      requestId,
+      ...(this.data && { data: this.data })
+    };
+  }
 }
 
-type AuthSuccessResponse<T = any> = BaseSuccessResponse & {
-  data: T
-  user: AuthUser
+// Validation Error Class
+export class ValidationError extends AppError {
+  constructor(input: ZodError | ValidationErrorItem | ValidationErrorItem[]) {
+    const errors = ValidationError.normalizeErrors(input);
+
+    super(
+      400,
+      ERROR_CODES.VALIDATION_ERROR,
+      'Validation failed',
+      { errors }
+    );
+
+    Object.setPrototypeOf(this, ValidationError.prototype);
+  }
+
+  private static normalizeErrors(input: ZodError | ValidationErrorItem | ValidationErrorItem[]): ValidationErrorItem[] {
+    if (input instanceof ZodError) {
+      return input.errors.map(err => ({
+        field: err.path.join('.'),
+        message: err.message
+      }));
+    }
+
+    return Array.isArray(input) ? input : [input];
+  }
 }
 
-// Response Schemas for OpenAPI
-export const ErrorResponseSchema = z.object({
+// Response Schemas
+export const createErrorResponseSchema = (code: ErrorCode) => z.object({
   success: z.literal(false),
   message: z.string(),
-  code: z.string(),
+  code: z.literal(code),
   data: z.record(z.any()).optional()
 })
 
-export const ValidationErrorSchema = z.object({
+export const validationErrorSchema = z.object({
   success: z.literal(false),
   message: z.string(),
-  code: z.literal(RESPONSE_CODES.VALIDATION_ERROR),
+  code: z.literal(ERROR_CODES.VALIDATION_ERROR),
   data: z.object({
     errors: z.array(z.object({
       field: z.string(),
@@ -76,63 +157,25 @@ export const ValidationErrorSchema = z.object({
   })
 })
 
-// Updated Success Response Schemas
-export const PublicSuccessResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
+export const SuccessResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
   z.object({
     success: z.literal(true),
     message: z.string().optional(),
-    data: dataSchema
+    data: dataSchema.optional(),
+    user: z.any().optional() // Replace with proper AuthUserSchema when defined
   })
 
-export const AuthSuccessResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
-  z.object({
-    success: z.literal(true),
-    message: z.string().optional(),
-    data: dataSchema,
-    user: z.any() // Replace with proper AuthUserSchema when defined
-  })
-
-
-// Common throwable error
-export const CustomZodError = (field: string, message: string) => {
-  return new ZodError([{
-      code: 'custom',
-      path: [field],
-      message: message
-  }])
-}
-
-export const CustomHTTPError = (code: StatusCode, message: string) => {
-  return new HTTPException(code, { message })
-}
-
-// Response Helpers for Routes
-export const sendError = (
-  c: Context,
-  message: string,
-  code: ResponseCode,
-  status: StatusCode = StatusCodes.BAD_REQUEST,
-  data?: Record<string, any>
-) => {
-  const response: ErrorResponse = {
-    success: false,
-    message,
-    code,
-    ...(data && { data })
-  }
-  return c.json(response, status)
-}
-
+// Response Functions
 export const sendSuccess = <T extends z.ZodType, S extends StatusCode>(
-  c: Context<Env>, 
+  c: Context<Env>,
   data: z.infer<T>,
   message?: string,
   status?: S
 ) => {
   return c.json({
-      success: true as const,
-      data,
-      ...(message && { message })
+    success: true as const,
+    data,
+    ...(message && { message })
   }, status || 200);
 }
 
@@ -146,30 +189,15 @@ export const sendSuccessWithAuthUser = <T extends z.ZodType, S extends StatusCod
   const user = c.get('user');
 
   return c.json({
-      success: true as const,
-      data,
-      user,
-      ...(message && { message })
+    success: true as const,
+    data,
+    user,
+    ...(message && { message })
   }, status || 200);
 }
 
-// Used in the global error handler. In general app throw ZodError
-export const handleZodError = (c: Context, error: ZodError): Response => {
-  const validationErrors: ValidationError[] = error.errors.map(err => ({
-    field: err.path.join('.'),
-    message: err.message
-  }))
 
-  return sendError(
-    c,
-    'Validation failed',
-    RESPONSE_CODES.VALIDATION_ERROR,
-    StatusCodes.BAD_REQUEST,
-    { errors: validationErrors }
-  )
-}
-
-// OpenAPI Response Helpers
+// OpenAPI Doc Helpers
 export const createJsonBody = <T extends z.ZodType>(schema: T) => ({
   content: {
     'application/json': {
@@ -178,98 +206,89 @@ export const createJsonBody = <T extends z.ZodType>(schema: T) => ({
   }
 })
 
-// Updated OpenAPI Response Helpers
-export const createPublicSuccessResponse = <T extends z.ZodType>(
-  dataSchema: T,
-  description: string,
-  statusCode: number = StatusCodes.OK
+const createSuccessRouteDefinition = <T extends z.ZodType>(
+  schema: T,
+  description: string
 ) => ({
-  [statusCode]: {
-    description,
-    content: {
-      'application/json': {
-        schema: PublicSuccessResponseSchema(dataSchema)
-      }
-    }
-  }
-})
+  content: {
+    'application/json': {
+      schema: SuccessResponseSchema(schema),
+    },
+  },
+  description: description,
+});
 
-export const createAuthSuccessResponse = <T extends z.ZodType>(
-  dataSchema: T,
-  description: string,
-  statusCode: number = StatusCodes.OK
-) => ({
-  [statusCode]: {
-    description,
-    content: {
-      'application/json': {
-        schema: AuthSuccessResponseSchema(dataSchema)
-      }
-    }
-  }
-})
-
-export const createErrorResponse = (
-  description: string,
-  statusCode: number = StatusCodes.BAD_REQUEST
-) => ({
-  [statusCode]: {
-    description,
-    content: {
-      'application/json': {
-        schema: ErrorResponseSchema
-      }
-    }
-  }
-})
-
-// Default responses for OpenAPI
 export const defaultResponses = {
+  // Validation Errors - 400
   [StatusCodes.BAD_REQUEST]: {
-    description: ReasonPhrases.BAD_REQUEST,
+    description: 'Validation failed for the request',
     content: {
       'application/json': {
-        schema: ValidationErrorSchema
+        schema: validationErrorSchema
       }
     }
   },
+
+  // Authentication/Authorization - 401, 403
   [StatusCodes.UNAUTHORIZED]: {
-    description: ReasonPhrases.UNAUTHORIZED,
+    description: 'Authentication credentials are missing or invalid',
     content: {
       'application/json': {
-        schema: ErrorResponseSchema
+        schema: createErrorResponseSchema(ERROR_CODES.UNAUTHORIZED)
       }
     }
   },
   [StatusCodes.FORBIDDEN]: {
-    description: ReasonPhrases.FORBIDDEN,
+    description: 'User does not have permission to access this resource',
     content: {
       'application/json': {
-        schema: ErrorResponseSchema
+        schema: createErrorResponseSchema(ERROR_CODES.FORBIDDEN)
       }
     }
   },
+
+  // Resource Errors - 404, 409
   [StatusCodes.NOT_FOUND]: {
-    description: ReasonPhrases.NOT_FOUND,
+    description: 'The requested resource was not found',
     content: {
       'application/json': {
-        schema: ErrorResponseSchema
+        schema: createErrorResponseSchema(ERROR_CODES.RESOURCE_NOT_FOUND)
       }
     }
   },
-  [StatusCodes.TOO_MANY_REQUESTS]: {
-    description: ReasonPhrases.TOO_MANY_REQUESTS,
+  [StatusCodes.CONFLICT]: {
+    description: 'The resource already exists or conflicts with another resource',
     content: {
       'application/json': {
-        schema: ErrorResponseSchema
+        schema: createErrorResponseSchema(ERROR_CODES.DUPLICATE_RESOURCE)
       }
     }
   },
+
+  // Business Logic Errors - 402, 403
+  [StatusCodes.PAYMENT_REQUIRED]: {
+    description: 'Insufficient funds or payment required',
+    content: {
+      'application/json': {
+        schema: createErrorResponseSchema(ERROR_CODES.INSUFFICIENT_FUNDS)
+      }
+    }
+  },
+
+  // Technical/Server Errors - 500, 503
   [StatusCodes.INTERNAL_SERVER_ERROR]: {
-    description: ReasonPhrases.INTERNAL_SERVER_ERROR,
+    description: 'An unexpected error occurred on the server',
     content: {
       'application/json': {
-        schema: ErrorResponseSchema
+        schema: createErrorResponseSchema(ERROR_CODES.INTERNAL_ERROR)
+      }
+    }
+  },
+  [StatusCodes.SERVICE_UNAVAILABLE]: {
+    description: 'The service is temporarily unavailable',
+    content: {
+      'application/json': {
+        schema: createErrorResponseSchema(ERROR_CODES.SERVICE_UNAVAILABLE)
       }
     }
   }

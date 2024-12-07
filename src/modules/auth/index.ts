@@ -5,7 +5,7 @@ import { z } from "zod"
 import { createAuthToken, getUserWithProfileByEmail } from "./auth.service.js";
 import { StatusCodes } from "http-status-codes";
 import { AuthUser } from "@/types/user.js";
-import { isAuthenticated } from "@/middlewares/auth/index.js";
+import { isAuthenticated } from "@/middlewares/authenticated.js"
 
 export const app = new CustomHono();
 

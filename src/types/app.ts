@@ -1,10 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { AuthUser } from "./user.js";
 
-
 export type Env = {
     Variables: {
         user: AuthUser;
+        requestId: string;
     };
 };
 
