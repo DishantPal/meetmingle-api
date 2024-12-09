@@ -4,6 +4,7 @@ import { createRoute } from "@hono/zod-openapi"
 import { z } from "zod"
 import { getActiveCountries, getActiveLanguages, getActiveReportReasons, getActiveStatesForCountry, getGroupedSettings } from "./settings.service.js"
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js"
+import { convertToSnakeCase } from "@/utils/stringHelpers.js"
 
 export const app = CustomHonoAppFactory()
 
@@ -159,7 +160,7 @@ const languagesResponseSchema = z.array(languageSchema)
 // Report Reason Related
 const reportReasonSchema = z.object({
   id: z.number(),
-  ban_reason_code: z.string(),
+  code: z.string(),
   title: z.string(),
   desc: z.string()
 })
@@ -206,11 +207,22 @@ app.openapi(getSettingsMergedReasonsRoute, async (c) => {
   const languages = await getActiveLanguages()
   const reportReasons = await getActiveReportReasons()
 
+  const profileGenderObj = groupedSettings?.profile_options?.gender.map((gender: string) => ({name: gender, code: convertToSnakeCase(gender)}) )
+  const relationShipObj = groupedSettings?.profile_options?.relation_ship_status.map((rss: string) => ({name: rss, code: convertToSnakeCase(rss)}) )
+  const interestsObj = groupedSettings?.profile_options?.interests.map((int: string) => ({name: int, code: convertToSnakeCase(int)}) )
+  const lookingForObj = groupedSettings?.profile_options?.looking_for.map((lf: string) => ({name: lf, code: convertToSnakeCase(lf)}) )
+  const personalityTraitsObj = groupedSettings?.profile_options?.personality_traits.map((pt: string) => ({name: pt, code: convertToSnakeCase(pt)}) )
+
   const mergedSettings = {
     settings: groupedSettings,
     countries,
     languages,
-    report_reasons: reportReasons
+    report_reasons: reportReasons,
+    gender:profileGenderObj,
+    relation_ship_status:relationShipObj,
+    interests:interestsObj,
+    looking_for:lookingForObj,
+    personality_traits: personalityTraitsObj,
   }
   return sendSuccess(c, mergedSettings, 'Report reasons retrieved successfully')
 })

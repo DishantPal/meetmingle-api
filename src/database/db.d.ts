@@ -62,7 +62,7 @@ export interface Languages {
 }
 
 export interface ReportReasons {
-  ban_reason_code: string;
+  code: string;
   created_at: Generated<Date>;
   desc: string;
   id: Generated<number>;
