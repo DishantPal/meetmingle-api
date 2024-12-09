@@ -52,7 +52,7 @@ const settingsResponseSchema = z.record(
 
 const getSettingsRoute = createRoute({
   method: 'get',
-  path: '/settings',
+  path: '/',
   tags: [moduleTag],
   responses: {
     200: createSuccessRouteDefinition(settingsResponseSchema, 'Retrieve application settings'),
