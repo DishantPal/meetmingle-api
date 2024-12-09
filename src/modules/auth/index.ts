@@ -223,7 +223,7 @@ app.openapi(updateProfileRoute, async (c) => {
 
     if (profileImage) {
         const fileName = `profile-image.png`;
-        const filePath = `storage/users/${userId}`;
+        const filePath = `storage/users/user_${userId}`;
         profileImageUrl = await storeFile(profileImage, filePath, fileName);
     }
 
