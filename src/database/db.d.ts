@@ -41,6 +41,36 @@ export interface ContentBlocks {
   updated_at: Date;
 }
 
+export interface Countries {
+  code: string;
+  created_at: Generated<Date>;
+  id: Generated<number>;
+  is_active: Generated<number>;
+  name: string;
+  region: string;
+  updated_at: Generated<Date>;
+}
+
+export interface Languages {
+  code: string;
+  created_at: Generated<Date>;
+  id: Generated<number>;
+  is_active: Generated<number>;
+  name: string;
+  native_name: string;
+  updated_at: Generated<Date>;
+}
+
+export interface States {
+  country_code: string;
+  created_at: Generated<Date>;
+  id: Generated<number>;
+  is_active: Generated<number>;
+  name: string;
+  state_code: string;
+  updated_at: Generated<Date>;
+}
+
 export interface StaticPages {
   content: string;
   created_at: Generated<Date>;
@@ -93,6 +123,9 @@ export interface Users {
 export interface DB {
   app_settings: AppSettings;
   content_blocks: ContentBlocks;
+  countries: Countries;
+  languages: Languages;
+  states: States;
   static_pages: StaticPages;
   user_profiles: UserProfiles;
   users: Users;
