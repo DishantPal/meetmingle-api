@@ -1,3 +1,4 @@
+import { serveStatic } from 'hono/serve-static'
 import applyDocsMiddleware from './middlewares/docs.js'
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js'
 import applyGlobalMiddlewares from './middlewares/index.js'
@@ -9,6 +10,8 @@ const baseApp = new CustomHono<Env>
 applyGlobalMiddlewares(baseApp)
 
 applyDocsMiddleware(baseApp)
+
+// baseApp.use('/favicon.ico', serveStatic({ path: './favicon.ico' }))
 
 setupRoutes(baseApp)
 

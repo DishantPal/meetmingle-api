@@ -177,3 +177,36 @@ app.openapi(getReportReasonsRoute, async (c) => {
   const reportReasons = await getActiveReportReasons()
   return sendSuccess(c, reportReasons, 'Report reasons retrieved successfully')
 })
+
+// Settings Merged
+const settingsMergedResponseSchema = z.object({
+  settings: settingsResponseSchema,
+  countries: countriesResponseSchema,
+  languages: languagesResponseSchema,
+  report_reasons: reportReasonsResponseSchema
+})
+
+const getSettingsMergedReasonsRoute = createRoute({
+  method: 'get',
+  path: '/settings-merged',
+  tags: [moduleTag],
+  responses: {
+    200: createSuccessRouteDefinition(settingsMergedResponseSchema, 'Merged Settings Response'),
+    ...defaultResponses
+  }
+})
+
+app.openapi(getSettingsMergedReasonsRoute, async (c) => {
+  const groupedSettings = await getGroupedSettings()
+  const countries = await getActiveCountries()
+  const languages = await getActiveLanguages()
+  const reportReasons = await getActiveReportReasons()
+
+  const mergedSettings = {
+    settings: groupedSettings,
+    countries,
+    languages,
+    report_reasons: reportReasons
+  }
+  return sendSuccess(c, mergedSettings, 'Report reasons retrieved successfully')
+})
