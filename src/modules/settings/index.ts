@@ -35,35 +35,36 @@ const settingsResponseSchema = z.record(
         "Open to Date"
       ]
     },
-    moderation: {
-      ban_reason: [
-        {
-          title: "Offensive Message",
-          desc: "person is using offensive language"
-        },
-        {
-          title: "Inappropriate Content",
-          desc: "sharing or displaying inappropriate content"
-        }
-      ]
-    }
+    // moderation: {
+    //   ban_reason: [
+    //     {
+    //       title: "Offensive Message",
+    //       desc: "person is using offensive language"
+    //     },
+    //     {
+    //       title: "Inappropriate Content",
+    //       desc: "sharing or displaying inappropriate content"
+    //     }
+    //   ]
+    // }
   }
 })
 
-const getSettingsRoute = createRoute({
-  method: 'get',
-  path: '/',
-  tags: [moduleTag],
-  responses: {
-    200: createSuccessRouteDefinition(settingsResponseSchema, 'Retrieve application settings'),
-    ...defaultResponses
-  }
-})
+// Commenting as this is merged with the single settings api
+// const getSettingsRoute = createRoute({
+//   method: 'get',
+//   path: '/',
+//   tags: [moduleTag],
+//   responses: {
+//     200: createSuccessRouteDefinition(settingsResponseSchema, 'Retrieve application settings'),
+//     ...defaultResponses
+//   }
+// })
 
-app.openapi(getSettingsRoute, async (c) => {
-  const groupedSettings = await getGroupedSettings()
-  return sendSuccess(c, groupedSettings, 'Settings retrieved successfully')
-})
+// app.openapi(getSettingsRoute, async (c) => {
+//   const groupedSettings = await getGroupedSettings()
+//   return sendSuccess(c, groupedSettings, 'Settings retrieved successfully')
+// })
 
 
 // Country Related
@@ -76,20 +77,21 @@ const countrySchema = z.object({
 
 const countriesResponseSchema = z.array(countrySchema)
 
-const getCountriesRoute = createRoute({
-  method: 'get',
-  path: '/countries',
-  tags: [moduleTag],
-  responses: {
-    200: createSuccessRouteDefinition(countriesResponseSchema, 'List of active countries'),
-    ...defaultResponses
-  }
-})
+// Commenting as this is merged with the single settings api
+// const getCountriesRoute = createRoute({
+//   method: 'get',
+//   path: '/countries',
+//   tags: [moduleTag],
+//   responses: {
+//     200: createSuccessRouteDefinition(countriesResponseSchema, 'List of active countries'),
+//     ...defaultResponses
+//   }
+// })
 
-app.openapi(getCountriesRoute, async (c) => {
-  const countries = await getActiveCountries()
-  return sendSuccess(c, countries, 'Countries retrieved successfully')
-})
+// app.openapi(getCountriesRoute, async (c) => {
+//   const countries = await getActiveCountries()
+//   return sendSuccess(c, countries, 'Countries retrieved successfully')
+// })
 
 // State Related
 const stateSchema = z.object({
@@ -137,20 +139,21 @@ const languageSchema = z.object({
 
 const languagesResponseSchema = z.array(languageSchema)
 
-const getLanguagesRoute = createRoute({
-  method: 'get',
-  path: '/languages',
-  tags: [moduleTag],
-  responses: {
-    200: createSuccessRouteDefinition(languagesResponseSchema, 'List of active languages'),
-    ...defaultResponses
-  }
-})
+// Commenting as this is merged with the single settings api
+// const getLanguagesRoute = createRoute({
+//   method: 'get',
+//   path: '/languages',
+//   tags: [moduleTag],
+//   responses: {
+//     200: createSuccessRouteDefinition(languagesResponseSchema, 'List of active languages'),
+//     ...defaultResponses
+//   }
+// })
 
-app.openapi(getLanguagesRoute, async (c) => {
-  const languages = await getActiveLanguages()
-  return sendSuccess(c, languages, 'Languages retrieved successfully')
-})
+// app.openapi(getLanguagesRoute, async (c) => {
+//   const languages = await getActiveLanguages()
+//   return sendSuccess(c, languages, 'Languages retrieved successfully')
+// })
 
 
 // Report Reason Related
@@ -163,20 +166,21 @@ const reportReasonSchema = z.object({
 
 const reportReasonsResponseSchema = z.array(reportReasonSchema)
 
-const getReportReasonsRoute = createRoute({
-  method: 'get',
-  path: '/report-reasons',
-  tags: [moduleTag],
-  responses: {
-    200: createSuccessRouteDefinition(reportReasonsResponseSchema, 'List of active report reasons'),
-    ...defaultResponses
-  }
-})
+// Commenting as this is merged with the single settings api
+// const getReportReasonsRoute = createRoute({
+//   method: 'get',
+//   path: '/report-reasons',
+//   tags: [moduleTag],
+//   responses: {
+//     200: createSuccessRouteDefinition(reportReasonsResponseSchema, 'List of active report reasons'),
+//     ...defaultResponses
+//   }
+// })
 
-app.openapi(getReportReasonsRoute, async (c) => {
-  const reportReasons = await getActiveReportReasons()
-  return sendSuccess(c, reportReasons, 'Report reasons retrieved successfully')
-})
+// app.openapi(getReportReasonsRoute, async (c) => {
+//   const reportReasons = await getActiveReportReasons()
+//   return sendSuccess(c, reportReasons, 'Report reasons retrieved successfully')
+// })
 
 // Settings Merged
 const settingsMergedResponseSchema = z.object({
@@ -188,7 +192,7 @@ const settingsMergedResponseSchema = z.object({
 
 const getSettingsMergedReasonsRoute = createRoute({
   method: 'get',
-  path: '/settings-merged',
+  path: '/',
   tags: [moduleTag],
   responses: {
     200: createSuccessRouteDefinition(settingsMergedResponseSchema, 'Merged Settings Response'),
