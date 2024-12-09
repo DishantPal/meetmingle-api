@@ -61,6 +61,16 @@ export interface Languages {
   updated_at: Generated<Date>;
 }
 
+export interface ReportReasons {
+  ban_reason_code: string;
+  created_at: Generated<Date>;
+  desc: string;
+  id: Generated<number>;
+  is_active: Generated<number>;
+  title: string;
+  updated_at: Generated<Date>;
+}
+
 export interface States {
   country_code: string;
   created_at: Generated<Date>;
@@ -125,6 +135,7 @@ export interface DB {
   content_blocks: ContentBlocks;
   countries: Countries;
   languages: Languages;
+  report_reasons: ReportReasons;
   states: States;
   static_pages: StaticPages;
   user_profiles: UserProfiles;

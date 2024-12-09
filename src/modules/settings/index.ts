@@ -2,7 +2,7 @@ import { CustomHono } from "@/types/app.js"
 import { createSuccessRouteDefinition, defaultResponses, sendSuccess } from "@/utils/response.js"
 import { createRoute } from "@hono/zod-openapi"
 import { z } from "zod"
-import { getGroupedSettings } from "./settings.service.js"
+import { getActiveCountries, getActiveLanguages, getActiveReportReasons, getActiveStatesForCountry, getGroupedSettings } from "./settings.service.js"
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js"
 
 export const app = CustomHonoAppFactory()
@@ -63,4 +63,117 @@ const getSettingsRoute = createRoute({
 app.openapi(getSettingsRoute, async (c) => {
   const groupedSettings = await getGroupedSettings()
   return sendSuccess(c, groupedSettings, 'Settings retrieved successfully')
+})
+
+
+// Country Related
+const countrySchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  code: z.string(),
+  region: z.string()
+})
+
+const countriesResponseSchema = z.array(countrySchema)
+
+const getCountriesRoute = createRoute({
+  method: 'get',
+  path: '/countries',
+  tags: [moduleTag],
+  responses: {
+    200: createSuccessRouteDefinition(countriesResponseSchema, 'List of active countries'),
+    ...defaultResponses
+  }
+})
+
+app.openapi(getCountriesRoute, async (c) => {
+  const countries = await getActiveCountries()
+  return sendSuccess(c, countries, 'Countries retrieved successfully')
+})
+
+// State Related
+const stateSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  state_code: z.string(),
+  country_code: z.string()
+})
+
+const statesResponseSchema = z.array(stateSchema)
+
+const stateParamsSchema = z.object({
+  countryCode: z.string().length(2).openapi({ 
+    example: 'US',
+    description: 'Two letter country code'
+  })
+})
+
+const getStatesRoute = createRoute({
+  method: 'get',
+  path: '/countries/:countryCode/states',
+  tags: [moduleTag],
+  request: {
+    params: stateParamsSchema
+  },
+  responses: {
+    200: createSuccessRouteDefinition(statesResponseSchema, 'List of active states for country'),
+    ...defaultResponses
+  }
+})
+
+app.openapi(getStatesRoute, async (c) => {
+  const { countryCode } = c.req.valid('param')
+  const states = await getActiveStatesForCountry(countryCode)
+  return sendSuccess(c, states, 'States retrieved successfully')
+})
+
+// Language Related
+const languageSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  native_name: z.string(),
+  code: z.string()
+})
+
+const languagesResponseSchema = z.array(languageSchema)
+
+const getLanguagesRoute = createRoute({
+  method: 'get',
+  path: '/languages',
+  tags: [moduleTag],
+  responses: {
+    200: createSuccessRouteDefinition(languagesResponseSchema, 'List of active languages'),
+    ...defaultResponses
+  }
+})
+
+app.openapi(getLanguagesRoute, async (c) => {
+  const languages = await getActiveLanguages()
+  return sendSuccess(c, languages, 'Languages retrieved successfully')
+})
+
+
+// Report Reason Related
+const reportReasonSchema = z.object({
+  id: z.number(),
+  ban_reason_code: z.string(),
+  title: z.string(),
+  desc: z.string()
+})
+
+const reportReasonsResponseSchema = z.array(reportReasonSchema)
+
+const getReportReasonsRoute = createRoute({
+  method: 'get',
+  path: '/report-reasons',
+  tags: [moduleTag],
+  responses: {
+    200: createSuccessRouteDefinition(reportReasonsResponseSchema, 'List of active report reasons'),
+    ...defaultResponses
+  }
+})
+
+app.openapi(getReportReasonsRoute, async (c) => {
+  const reportReasons = await getActiveReportReasons()
+  return sendSuccess(c, reportReasons, 'Report reasons retrieved successfully')
 })
