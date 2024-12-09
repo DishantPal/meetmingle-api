@@ -15,7 +15,9 @@ const envSchema = z.object({
 
     DATABASE_URL: z.string(),
 
-    JWT_SECRET: z.string()
+    JWT_SECRET: z.string(),
+    
+    IMG_URL: z.string()
     
     // Uncomment if using Redis
     // REDIS_CLIENT: z.string().optional(),
@@ -51,6 +53,7 @@ export const config = {
         debug: parsedEnv.data.APP_DEBUG,
         timezone: parsedEnv.data.APP_TIMEZONE,
         url: parsedEnv.data.APP_URL,
+        img_url: parsedEnv.data.IMG_URL,
     },
     db: {
         database_url: parsedEnv.data.DATABASE_URL,
