@@ -11,7 +11,9 @@
     "migrate": "npx kysely migrate latest",
     "migrate:rollback": "npx kysely migrate down",
     "migrate:status": "npx kysely migrate list",
-    "migrate:make": "npx kysely migrate make"
+    "migrate:make": "npx kysely migrate make",
+    "seed:make": "npx kysely seed:make",
+    "seed": "npx kysely seed:run"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

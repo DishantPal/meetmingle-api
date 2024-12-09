@@ -27,7 +27,7 @@ export interface AppSettings {
   id: Generated<number>;
   key: string;
   updated_at: Date;
-  value: Json;
+  value: string;
 }
 
 export interface ContentBlocks {

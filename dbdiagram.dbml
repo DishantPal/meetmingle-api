@@ -264,7 +264,7 @@ Table content_blocks {
 Table app_settings {
   id uuid [pk]
   key varchar [unique]
-  value jsonb
+  value text
   group varchar // logical grouping of settings
   created_at timestamp [default: `now()`]
   updated_at timestamp
