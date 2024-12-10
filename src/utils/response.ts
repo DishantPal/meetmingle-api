@@ -46,7 +46,6 @@ import { Env } from '@/types/app.js'
 export const ERROR_CODES = {
   // Validation
   VALIDATION_ERROR: 'VALIDATION_ERROR',
-  
   NOT_FOUND: 'NOT_FOUND',
 
   // Auth
@@ -55,6 +54,8 @@ export const ERROR_CODES = {
   USER_NOT_FOUND: 'USER_NOT_FOUND',
 
   // Business Logic
+  USER_BLOCKED: 'USER_BLOCKED',    // Specific blocking scenario
+  NOT_ALLOWED: 'NOT_ALLOWED',      // General purpose for disallowed actions
   INSUFFICIENT_FUNDS: 'INSUFFICIENT_FUNDS',
   SUBSCRIPTION_REQUIRED: 'SUBSCRIPTION_REQUIRED',
   RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
