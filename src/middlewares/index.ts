@@ -43,7 +43,6 @@ const applyGlobalMiddlewares = (app: CustomHono) => {
             // const key = `${ip}-${user}`;
             const key = `${ip}`;
 
-            console.log("🚀 ~ key:", key)
             return key;
         },
     });

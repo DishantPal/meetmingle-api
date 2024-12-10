@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "clean": "rimraf dist",
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && tsc && tsc-alias",
     "start": "npm run build && node dist/index.js",
     "db:make": "tsx ./src/database/migration-generator.ts -p ./src/database/migrations",
     "db:types": "kysely-codegen --out-file ./src/database/db.d.ts",
@@ -36,6 +36,7 @@
     "commander": "^12.1.0",
     "kysely-ctl": "^0.9.0",
     "rimraf": "^6.0.1",
+    "tsc-alias": "^1.8.10",
     "tsx": "^4.7.1"
   }
 }
