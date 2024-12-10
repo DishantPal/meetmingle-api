@@ -91,6 +91,14 @@ export interface States {
   updated_at: Generated<Date>;
 }
 
+export interface UserBlocks {
+  blocked_id: number;
+  blocker_id: number;
+  created_at: Generated<Date>;
+  id: Generated<number>;
+  updated_at: Generated<Date>;
+}
+
 export interface UserProfiles {
   bio: string | null;
   country: string | null;
@@ -116,6 +124,15 @@ export interface UserProfiles {
   user_id: number;
 }
 
+export interface UserReports {
+  created_at: Generated<Date>;
+  id: Generated<number>;
+  reason_code: string;
+  reported_id: number;
+  reporter_id: number;
+  updated_at: Generated<Date>;
+}
+
 export interface Users {
   ban_reason: string | null;
   created_at: Generated<Date>;
@@ -138,6 +155,8 @@ export interface DB {
   pages: Pages;
   report_reasons: ReportReasons;
   states: States;
+  user_blocks: UserBlocks;
   user_profiles: UserProfiles;
+  user_reports: UserReports;
   users: Users;
 }
