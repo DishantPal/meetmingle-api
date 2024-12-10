@@ -77,7 +77,7 @@ export interface States {
   id: Generated<number>;
   is_active: Generated<number>;
   name: string;
-  state_code: string;
+  code: string;
   updated_at: Generated<Date>;
 }
 

@@ -98,7 +98,7 @@ const countriesResponseSchema = z.array(countrySchema)
 const stateSchema = z.object({
   id: z.number(),
   name: z.string(),
-  state_code: z.string(),
+  code: z.string(),
   country_code: z.string()
 })
 

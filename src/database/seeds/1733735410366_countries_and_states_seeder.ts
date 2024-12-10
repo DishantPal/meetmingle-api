@@ -4,7 +4,7 @@ import fetch from 'node-fetch'
 interface State {
   id: number
   name: string
-  state_code: string
+  code: string
   latitude: string
   longitude: string
   type: string | null
@@ -45,9 +45,9 @@ export async function seed(db: Kysely<any>): Promise<void> {
       if (country.states && country.states.length > 0) {
         // Process states in batches of 100
         const batchSize = 100
-        const statesData = country.states.filter(state => state.state_code).map(state => ({
+        const statesData = country.states.filter(state => state.code).map(state => ({
           name: state.name,
-          state_code: state.state_code,
+          code: state.code,
           country_code: country.iso2,
           is_active: true,
           updated_at: new Date()
