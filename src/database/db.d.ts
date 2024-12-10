@@ -38,7 +38,7 @@ export interface ContentBlocks {
   purpose: string;
   title: string;
   type: string;
-  updated_at: Date;
+  updated_at: Generated<Date>;
 }
 
 export interface Countries {
@@ -61,6 +61,16 @@ export interface Languages {
   updated_at: Generated<Date>;
 }
 
+export interface Pages {
+  content: string;
+  created_at: Generated<Date>;
+  id: Generated<number>;
+  is_active: Generated<number>;
+  slug: string;
+  title: string;
+  updated_at: Generated<Date>;
+}
+
 export interface ReportReasons {
   code: string;
   created_at: Generated<Date>;
@@ -72,23 +82,13 @@ export interface ReportReasons {
 }
 
 export interface States {
+  code: string;
   country_code: string;
   created_at: Generated<Date>;
   id: Generated<number>;
   is_active: Generated<number>;
   name: string;
-  code: string;
   updated_at: Generated<Date>;
-}
-
-export interface StaticPages {
-  content: string;
-  created_at: Generated<Date>;
-  id: Generated<number>;
-  is_active: Generated<number>;
-  slug: string;
-  title: string;
-  updated_at: Date;
 }
 
 export interface UserProfiles {
@@ -135,9 +135,9 @@ export interface DB {
   content_blocks: ContentBlocks;
   countries: Countries;
   languages: Languages;
+  pages: Pages;
   report_reasons: ReportReasons;
   states: States;
-  static_pages: StaticPages;
   user_profiles: UserProfiles;
   users: Users;
 }
