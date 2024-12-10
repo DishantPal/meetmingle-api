@@ -1,9 +1,10 @@
 import { CustomHono } from "@/types/app.js"
-import { createSuccessRouteDefinition, defaultResponses, sendSuccess } from "@/utils/response.js"
+import { AppError, createSuccessRouteDefinition, defaultResponses, ERROR_CODES, sendSuccess } from "@/utils/response.js"
 import { createRoute } from "@hono/zod-openapi"
 import { z } from "zod"
 import { getActivePages, getActivePage, getActiveContentBlocks, getActiveContentBlock } from "./content.service.js"
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js"
+import { StatusCodes } from "http-status-codes"
 
 export const app = CustomHonoAppFactory()
 
@@ -52,6 +53,9 @@ const getPagesRoute = createRoute({
 app.openapi(getPageRoute, async (c) => {
   const { slug } = c.req.valid('param')
   const page = await getActivePage(slug)
+
+  if(!page) throw new AppError(StatusCodes.NOT_FOUND, ERROR_CODES.NOT_FOUND, 'Page not found')
+
   return sendSuccess(c, page, 'Page retrieved successfully')
 })
 
@@ -104,6 +108,9 @@ const getContentBlocksRoute = createRoute({
 app.openapi(getContentBlockRoute, async (c) => {
   const { purpose } = c.req.valid('param')
   const block = await getActiveContentBlock(purpose)
+
+  if(!block) throw new AppError(StatusCodes.NOT_FOUND, ERROR_CODES.NOT_FOUND, 'Content block not found')
+
   return sendSuccess(c, block, 'Content block retrieved successfully')
 })
 

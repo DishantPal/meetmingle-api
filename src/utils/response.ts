@@ -46,6 +46,8 @@ import { Env } from '@/types/app.js'
 export const ERROR_CODES = {
   // Validation
   VALIDATION_ERROR: 'VALIDATION_ERROR',
+  
+  NOT_FOUND: 'NOT_FOUND',
 
   // Auth
   UNAUTHORIZED: 'UNAUTHORIZED',

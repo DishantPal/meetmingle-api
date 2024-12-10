@@ -208,7 +208,7 @@ Table user_rewards {
   Note: 'Track user completion of reward activities'
 }
 
-Table static_pages {
+Table pages {
   id uuid [pk]
   slug varchar [unique]
   title varchar
