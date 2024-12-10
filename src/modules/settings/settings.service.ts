@@ -1,6 +1,6 @@
 import { db } from "@/database/database.js"
 import { Selectable } from "kysely"
-import { AppSettings,Countries, States, Languages } from "@/database/db.js"
+import { AppSettings,Countries, States, Languages, ReportReasons } from "@/database/db.js"
 
 export const getSettings = async (): Promise<Selectable<AppSettings>[]> => {
   const settings = await db

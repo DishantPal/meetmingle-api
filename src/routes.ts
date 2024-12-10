@@ -1,8 +1,8 @@
 import { CustomHono, Env } from './types/app.js'
 import { app as testUserRoutes } from './modules/user/index.js'
-import { app as authRoutes } from './modules/auth/index.js'
-import { app as settingRoutes } from './modules/settings/index.js'
-import { app as contentRoutes } from './modules/content/index.js'
+import { contentRoutes } from './modules/content/index.js'
+import { authRoutes } from './modules/auth/index.js'
+import { settingRoutes } from './modules/settings/index.js'
 
 export function setupRoutes(app: CustomHono<Env>) {
   // Register routes

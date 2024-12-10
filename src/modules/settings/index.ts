@@ -6,7 +6,8 @@ import { getActiveCountries, getActiveLanguages, getActiveReportReasons, getActi
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js"
 import { convertToSnakeCase } from "@/utils/stringHelpers.js"
 
-export const app = CustomHonoAppFactory()
+const app = CustomHonoAppFactory()
+export {app as settingRoutes};
 
 const moduleTag = 'settings'
 

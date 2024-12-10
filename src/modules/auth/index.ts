@@ -10,7 +10,8 @@ import { UserProfiles } from "@/database/db.js";
 import storeFile from "@/utils/storeFile.js";
 import { Insertable } from "kysely";
 
-export const app = CustomHonoAppFactory();
+const app = CustomHonoAppFactory();
+export {app as authRoutes};
 
 const moduleTag = 'auth';
 
@@ -45,7 +46,8 @@ const signinRoute = createRoute({
 });
 
 app.openapi(signinRoute, async (c) => {
-    const { email, provider_type, provider_id, provider_token } = c.req.valid('json')
+    // const { email, provider_type, provider_id, provider_token } = c.req.valid('json')
+    const { email, provider_type, provider_id } = c.req.valid('json')
 
     // TODO: Check if provider token are available on app side to validate
     // if(!provider_token.includes('auth-token_')) {

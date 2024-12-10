@@ -6,7 +6,8 @@ import { getActivePages, getActivePage, getActiveContentBlocks, getActiveContent
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js"
 import { StatusCodes } from "http-status-codes"
 
-export const app = CustomHonoAppFactory()
+const app = CustomHonoAppFactory()
+export {app as contentRoutes};
 
 const moduleTag = 'content'
 
