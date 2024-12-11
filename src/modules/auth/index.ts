@@ -141,7 +141,7 @@ const updateUserProfileSchema = z.object({
         .openapi({ example: 'CA' }),
     preferred_language: z.string().length(2, { message: "Language code must be a 2-letter ISO language code" }).optional()
         .openapi({ example: 'en' }),
-    relationship_status: z.enum(['single', 'married', 'divorced', 'widowed', 'in_relationship', 'its_complicated']).optional()
+    relationship_status: z.string().optional()
         .openapi({ example: 'single' }),
     interests: z.array(z.string()).optional()
         .openapi({ example: ['photography', 'hiking', 'cooking'] }),
