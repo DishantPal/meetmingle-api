@@ -11,7 +11,7 @@ import storeFile from "@/utils/storeFile.js";
 import { Insertable } from "kysely";
 
 const app = CustomHonoAppFactory();
-export {app as authRoutes};
+export { app as authRoutes };
 
 const moduleTag = 'auth';
 
@@ -105,19 +105,30 @@ const updateUserProfileSchema = z.object({
     profile_name: z.string().min(1).max(100).optional()
         .openapi({ example: 'John Doe' }),
     profile_image: z.instanceof(File).optional().refine(
-        (file) =>
-            file && [
+        (file) => {
+            // If no file is provided, return true (valid)
+            if (!file) return true;
+
+            // If a file is provided, check its type
+            return [
                 "image/png",
                 "image/jpeg",
                 "image/jpg",
                 "image/svg+xml",
                 "image/gif",
-            ].includes(file.type),
+            ].includes(file.type);
+        },
         { message: "Invalid image file type" }
-    )
-        .refine((file) => file && (file.size <= ProfileImageMaxSize), {
-            message: "File size should not exceed 5MB",
-        }),
+    ).refine(
+        (file) => {
+            // If no file is provided, return true (valid)
+            if (!file) return true;
+
+            // If a file is provided, check its size
+            return file.size <= ProfileImageMaxSize;
+        },
+        { message: "File size should not exceed 5MB" }
+    ),
     bio: z.string().max(1000).optional()
         .openapi({ example: 'I love hiking and photography' }),
     dob: z.string().date().optional()
@@ -188,7 +199,7 @@ const profileFormDataToJson = (formData: FormData): Partial<Insertable<UserProfi
         const arrayMatch = key.match(/^(.*?)\[\d+\]$/);
         if (arrayMatch) {
             const fieldName = arrayMatch[1];
-            if(!fieldName) continue;
+            if (!fieldName) continue;
             if (!arrayFields.has(fieldName)) {
                 arrayFields.set(fieldName, []);
             }
@@ -241,7 +252,7 @@ app.openapi(updateProfileRoute, async (c) => {
 
     // update context user here
     const user = await getUserWithProfileById(Number(userId))
-    if(!user) throw new Error('User not found');
+    if (!user) throw new Error('User not found');
     c.set('user', user)
 
     return sendSuccessWithAuthUser(c, {}, 'Profile updated successfully');
