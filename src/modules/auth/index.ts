@@ -159,8 +159,6 @@ const updateUserProfileSchema = z.object({
         .openapi({ example: false }),
     is_fitness_enthusiast: z.coerce.boolean().optional()
         .openapi({ example: true }),
-}).refine(data => Object.keys(data).length > 0, {
-    message: "At least one field must be provided for update"
 });
 
 const profileUpdateResponseSchema = z.object({})
@@ -228,6 +226,7 @@ const profileFormDataToJson = (formData: FormData): Partial<Insertable<UserProfi
 // 3. API Handler
 app.openapi(updateProfileRoute, async (c) => {
     const formData = await c.req.formData();
+    console.log("🚀 ~ app.openapi ~ formData:", formData)
     const userId = c.get('user').id;
 
     // Handle file upload if exists
