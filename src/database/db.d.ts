@@ -5,6 +5,8 @@
 
 import type { ColumnType } from "kysely";
 
+export type Decimal = ColumnType<string, number | string>;
+
 export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   ? ColumnType<S, I | undefined, U>
   : ColumnType<T, T | undefined, T>;
@@ -28,6 +30,19 @@ export interface AppSettings {
   key: string;
   updated_at: Date;
   value: string;
+}
+
+export interface CoinPackages {
+  coins: number;
+  created_at: Generated<Date>;
+  currency: string;
+  icon: string;
+  id: Generated<number>;
+  is_active: Generated<number>;
+  name: string;
+  playstore_id: string;
+  price: Decimal;
+  updated_at: Generated<Date>;
 }
 
 export interface ContentBlocks {
@@ -81,6 +96,20 @@ export interface ReportReasons {
   updated_at: Generated<Date>;
 }
 
+export interface Rewards {
+  code: string;
+  coins: number;
+  created_at: Generated<Date>;
+  description: string;
+  icon: string;
+  id: Generated<number>;
+  is_active: Generated<number | null>;
+  is_progression_based: Generated<number | null>;
+  link: string | null;
+  title: string;
+  updated_at: Generated<Date>;
+}
+
 export interface States {
   code: string;
   country_code: string;
@@ -97,6 +126,23 @@ export interface UserBlocks {
   created_at: Generated<Date>;
   id: Generated<number>;
   updated_at: Generated<Date>;
+}
+
+export interface UserCoinTransactions {
+  action_type: string;
+  admin_note: string | null;
+  amount: number;
+  checksum: string;
+  created_at: Generated<Date>;
+  description: string;
+  id: Generated<number>;
+  reference_id: string | null;
+  running_balance: number;
+  transaction_id: string;
+  transaction_type: "credit" | "debit";
+  updated_at: Generated<Date>;
+  user_id: number;
+  user_note: string | null;
 }
 
 export interface UserProfiles {
@@ -133,6 +179,17 @@ export interface UserReports {
   updated_at: Generated<Date>;
 }
 
+export interface UserRewards {
+  created_at: Generated<Date>;
+  expires_at: Date | null;
+  id: Generated<number>;
+  progress: number | null;
+  reward_code: string;
+  status: "awarded" | "declined" | "expired" | "pending";
+  updated_at: Generated<Date>;
+  user_id: number;
+}
+
 export interface Users {
   ban_reason: string | null;
   created_at: Generated<Date>;
@@ -149,14 +206,18 @@ export interface Users {
 
 export interface DB {
   app_settings: AppSettings;
+  coin_packages: CoinPackages;
   content_blocks: ContentBlocks;
   countries: Countries;
   languages: Languages;
   pages: Pages;
   report_reasons: ReportReasons;
+  rewards: Rewards;
   states: States;
   user_blocks: UserBlocks;
+  user_coin_transactions: UserCoinTransactions;
   user_profiles: UserProfiles;
   user_reports: UserReports;
+  user_rewards: UserRewards;
   users: Users;
 }
