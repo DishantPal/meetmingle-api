@@ -104,8 +104,8 @@ export interface Rewards {
   icon: string;
   id: Generated<number>;
   is_active: Generated<number | null>;
-  is_progression_based: Generated<number | null>;
   link: string | null;
+  reward_type: Generated<"daily" | "multiple" | "one_time">;
   title: string;
   updated_at: Generated<Date>;
 }

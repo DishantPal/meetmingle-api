@@ -226,7 +226,6 @@ const profileFormDataToJson = (formData: FormData): Partial<Insertable<UserProfi
 // 3. API Handler
 app.openapi(updateProfileRoute, async (c) => {
     const formData = await c.req.formData();
-    console.log("🚀 ~ app.openapi ~ formData:", formData)
     const userId = c.get('user').id;
 
     // Handle file upload if exists

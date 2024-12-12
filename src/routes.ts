@@ -4,6 +4,7 @@ import { contentRoutes } from './modules/content/index.js'
 import { authRoutes } from './modules/auth/index.js'
 import { settingRoutes } from './modules/settings/index.js'
 import { userRoutes } from './modules/user/index.js'
+import { coinRoutes } from './modules/coins/index.js'
 
 export function setupRoutes(app: CustomHono<Env>) {
   // Register routes
@@ -12,6 +13,7 @@ export function setupRoutes(app: CustomHono<Env>) {
   app.route('/settings', settingRoutes)
   app.route('/content', contentRoutes)
   app.route('/user', userRoutes)
+  app.route('/coins', coinRoutes)
 
   return app
 }
