@@ -97,6 +97,7 @@ export interface ReportReasons {
 }
 
 export interface Rewards {
+  button_label: string | null;
   code: string;
   coins: number;
   created_at: Generated<Date>;

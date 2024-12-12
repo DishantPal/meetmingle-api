@@ -4,7 +4,7 @@ import { createRoute } from "@hono/zod-openapi"
 import { z } from "zod"
 import { getActiveCountries, getActiveLanguages, getActiveReportReasons, getActiveStatesForCountry, getGroupedSettings } from "./settings.service.js"
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js"
-import { convertToSnakeCase } from "@/utils/stringHelpers.js"
+import { convertToSnakeCase, convertToTitleCase } from "@/utils/stringHelpers.js"
 
 const app = CustomHonoAppFactory()
 export {app as settingRoutes};
@@ -208,7 +208,7 @@ app.openapi(getSettingsMergedReasonsRoute, async (c) => {
   const languages = await getActiveLanguages()
   const reportReasons = await getActiveReportReasons()
 
-  const profileGenderObj = groupedSettings?.profile_options?.gender.map((gender: string) => ({name: gender, code: convertToSnakeCase(gender)}) )
+  const profileGenderObj = groupedSettings?.profile_options?.gender.map((gender: string) => ({image: 'https://meetmingle-api.enactweb.com/images/users/user_4/profile-image.png',name: convertToTitleCase(gender), code: convertToSnakeCase(gender)}) )
   const relationShipObj = groupedSettings?.profile_options?.relation_ship_status.map((rss: string) => ({name: rss, code: convertToSnakeCase(rss)}) )
   const interestsObj = groupedSettings?.profile_options?.interests.map((int: string) => ({name: int, code: convertToSnakeCase(int)}) )
   const lookingForObj = groupedSettings?.profile_options?.looking_for.map((lf: string) => ({name: lf, code: convertToSnakeCase(lf)}) )
