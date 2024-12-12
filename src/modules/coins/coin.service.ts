@@ -15,6 +15,15 @@ export const getActivePackages = async (): Promise<Selectable<CoinPackages>[]> =
   return packages
 }
 
+export const getActivePackage = async (packageId: number): Promise<Selectable<CoinPackages> | undefined> => {
+  return db
+    .selectFrom("coin_packages")
+    .selectAll()
+    .where("id", "=", packageId)
+    .where("is_active", "=", 1)
+    .executeTakeFirst()
+}
+
 // Get all active rewards
 export const getActiveRewards = async (): Promise<Selectable<Rewards>[]> => {
   const rewards = await db
@@ -206,4 +215,54 @@ export const getUserTransactions = async (
     transactions,
     total: count
   }
+}
+
+export const createPurchaseTransaction = async (
+  userId: number,
+  packageDetails: Selectable<CoinPackages>,
+  platform: string,
+  purchaseToken: string
+): Promise<void> => {
+  await db.transaction().execute(async (trx) => {
+    const transactionId = generateId()
+    
+    // Get current balance
+    const lastTransaction = await trx
+      .selectFrom("user_coin_transactions")
+      .select("running_balance")
+      .where("user_id", "=", userId)
+      .orderBy("created_at", "desc")
+      .limit(1)
+      .executeTakeFirst()
+
+    const currentBalance = lastTransaction?.running_balance || 0
+    const newBalance = currentBalance + packageDetails.coins
+
+    // Generate checksum
+    const timestamp = new Date().toISOString()
+    const checksumData = `${userId}${transactionId}${packageDetails.coins}${timestamp}`
+    const checksum = CRC32.str(checksumData).toString(16)
+
+    // Log purchase verification token (temporary)
+    console.log('Purchase Verification Token:', purchaseToken)
+    console.log('Platform:', platform)
+
+    // Create transaction
+    await trx
+      .insertInto("user_coin_transactions")
+      .values({
+        transaction_id: transactionId,
+        user_id: userId,
+        transaction_type: 'credit',
+        action_type: 'purchase',
+        amount: packageDetails.coins,
+        running_balance: newBalance,
+        description: `Purchased ${packageDetails.coins} coins - ${packageDetails.name}`,
+        reference_id: packageDetails.id.toString(),
+        user_note: `Platform: ${platform}`,
+        admin_note: `Purchase Token: ${purchaseToken}`,
+        checksum: checksum
+      })
+      .execute()
+  })
 }

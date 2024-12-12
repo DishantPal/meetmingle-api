@@ -2,10 +2,11 @@ import { CustomHono } from "@/types/app.js"
 import { AppError, createJsonBody, createSuccessRouteDefinition, defaultResponses, ERROR_CODES, sendSuccess } from "@/utils/response.js"
 import { createRoute } from "@hono/zod-openapi"
 import { z } from "zod"
-import { createCoinTransaction, createRewardClaim, getActivePackages, getActiveRewards, getRewardByCode, getUserCoinBalance, getUserRewardStatuses, getUserTransactions, isRewardClaimed } from "./coin.service.js"
+import { createCoinTransaction, createPurchaseTransaction, createRewardClaim, getActivePackage, getActivePackages, getActiveRewards, getRewardByCode, getUserCoinBalance, getUserRewardStatuses, getUserTransactions, isRewardClaimed } from "./coin.service.js"
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js"
 import { isAuthenticated } from "@/middlewares/authenticated.js"
 import { StatusCodes } from "http-status-codes"
+import { verifyAndroidPurchase, verifyIosPurchase } from "./purchase-verification.service.js"
 
 const app = CustomHonoAppFactory()
 export { app as coinRoutes }
@@ -313,7 +314,7 @@ app.openapi(getTransactionsRoute, async (c) => {
 
   // Validate limit
   const limit = Math.min(query.limit, 100)
-  
+
   const { transactions, total } = await getUserTransactions(userId, {
     transaction_type: query.transaction_type || null,
     action_type: query.action_type,
@@ -337,4 +338,92 @@ app.openapi(getTransactionsRoute, async (c) => {
   }
 
   return sendSuccess(c, response, 'Transactions retrieved successfully')
+})
+
+
+// Purchase api
+const purchaseCoinRequestSchema = z.object({
+  package_id: z.number().openapi({
+    example: 1,
+    description: "ID of the coin package purchased"
+  }),
+  platform: z.enum(['android', 'ios']).openapi({
+    example: 'android',
+    description: "Platform where purchase was made"
+  }),
+  purchase_token: z.string().openapi({
+    example: "gpa.3378-9273-9273-47832",
+    description: "Purchase verification token from the platform"
+  })
+})
+
+const purchaseResponseSchema = z.object({
+  coins_credited: z.number(),
+  current_balance: z.number()
+}).openapi({
+  example: {
+    coins_credited: 100,
+    current_balance: 1500
+  }
+})
+
+const purchaseCoinRoute = createRoute({
+  method: 'post',
+  path: '/purchase',
+  tags: [moduleTag],
+  security: [{ bearerAuth: [] }],
+  middleware: [isAuthenticated] as const,
+  request: {
+    body: createJsonBody(purchaseCoinRequestSchema)
+  },
+  responses: {
+    200: createSuccessRouteDefinition(purchaseResponseSchema, 'Coins credited successfully'),
+    ...defaultResponses
+  }
+})
+
+app.openapi(purchaseCoinRoute, async (c) => {
+  const userId = c.get('user').id
+  const { package_id, platform, purchase_token } = c.req.valid('json')
+
+  // 1. Verify package exists and is active
+  const packageDetails = await getActivePackage(package_id)
+  if (!packageDetails) {
+    throw new AppError(
+      StatusCodes.NOT_FOUND,
+      ERROR_CODES.NOT_FOUND,
+      'Package not found'
+    )
+  }
+
+  // 2. Verify purchase token based on platform
+  let isValid = false
+  if (platform === 'android') {
+    isValid = await verifyAndroidPurchase(purchase_token, package_id)
+  } else {
+    isValid = await verifyIosPurchase(purchase_token, package_id)
+  }
+
+  if (!isValid) {
+    throw new AppError(
+      StatusCodes.BAD_REQUEST,
+      ERROR_CODES.VALIDATION_ERROR,
+      'Invalid purchase token'
+    )
+  }
+
+  // 3. Process purchase
+  await createPurchaseTransaction(userId, packageDetails, platform, purchase_token)
+
+  // 4. Get updated balance
+  const currentBalance = await getUserCoinBalance(userId)
+
+  return sendSuccess(
+    c,
+    {
+      coins_credited: packageDetails.coins,
+      current_balance: currentBalance
+    },
+    'Coins credited successfully'
+  )
 })
