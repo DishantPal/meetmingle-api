@@ -30,7 +30,7 @@ export async function seed(db: Kysely<any>): Promise<void> {
         code: 'FREE',
         name: 'Free Plan',
         description: 'Basic features for getting started',
-        duration_days: 0, // Unlimited duration for free plan
+        duration_days: -1, // 4000 duration for free plan as supported by mysql timestamp column
         price: 0,
         icon: 'https://samplelib.com/lib/preview/png/sample-red-100x75.png',
         is_active: true,

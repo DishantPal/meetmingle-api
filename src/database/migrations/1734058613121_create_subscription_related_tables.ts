@@ -98,12 +98,8 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('status', sql`enum('active', 'paused', 'cancelled', 'expired')`, col => 
       col.notNull().defaultTo('active')
     )
-    .addColumn('start_date', 'timestamp', col => 
-      col.notNull()
-    )
-    .addColumn('end_date', 'timestamp', col => 
-      col.notNull()
-    )
+    .addColumn('start_date', 'timestamp')
+    .addColumn('end_date', 'timestamp')
     .addColumn('auto_renewal', 'boolean', col => 
       col.notNull().defaultTo(true)
     )

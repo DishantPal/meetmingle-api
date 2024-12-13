@@ -250,12 +250,12 @@ export interface UserSubscriptions {
   auto_renewal: Generated<number>;
   cancellation_date: Date | null;
   created_at: Generated<Date>;
-  end_date: Date;
+  end_date: Date | null;
   id: Generated<number>;
   payment_provider: string;
   payment_provider_subscription_id: string;
   plan_id: number;
-  start_date: Date;
+  start_date: Date | null;
   status: Generated<"active" | "cancelled" | "expired" | "paused">;
   updated_at: Generated<Date>;
   user_id: number;
