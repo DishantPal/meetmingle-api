@@ -97,7 +97,7 @@ export interface ReportReasons {
 }
 
 export interface Rewards {
-  button_label: string | null;
+  button_label: Generated<string | null>;
   code: string;
   coins: number;
   created_at: Generated<Date>;
@@ -118,6 +118,47 @@ export interface States {
   id: Generated<number>;
   is_active: Generated<number>;
   name: string;
+  updated_at: Generated<Date>;
+}
+
+export interface SubscriptionCharges {
+  amount: Decimal;
+  charge_date: Date;
+  created_at: Generated<Date>;
+  currency: string;
+  id: Generated<number>;
+  payment_provider: string;
+  payment_provider_transaction_id: string;
+  status: Generated<"failed" | "pending" | "success">;
+  updated_at: Generated<Date>;
+  user_subscription_id: number;
+}
+
+export interface SubscriptionPlanFeatures {
+  code: string;
+  created_at: Generated<Date>;
+  description: string | null;
+  feature_value: string | null;
+  icon: string | null;
+  id: Generated<number>;
+  is_active: Generated<number>;
+  name: string;
+  plan_id: number;
+  updated_at: Generated<Date>;
+}
+
+export interface SubscriptionPlans {
+  code: string;
+  created_at: Generated<Date>;
+  description: string | null;
+  duration_days: number;
+  icon: string | null;
+  id: Generated<number>;
+  is_active: Generated<number>;
+  name: string;
+  price: Decimal;
+  store_product_id_android: string | null;
+  store_product_id_ios: string | null;
   updated_at: Generated<Date>;
 }
 
@@ -205,6 +246,21 @@ export interface Users {
   updated_at: Generated<Date>;
 }
 
+export interface UserSubscriptions {
+  auto_renewal: Generated<number>;
+  cancellation_date: Date | null;
+  created_at: Generated<Date>;
+  end_date: Date;
+  id: Generated<number>;
+  payment_provider: string;
+  payment_provider_subscription_id: string;
+  plan_id: number;
+  start_date: Date;
+  status: Generated<"active" | "cancelled" | "expired" | "paused">;
+  updated_at: Generated<Date>;
+  user_id: number;
+}
+
 export interface DB {
   app_settings: AppSettings;
   coin_packages: CoinPackages;
@@ -215,10 +271,14 @@ export interface DB {
   report_reasons: ReportReasons;
   rewards: Rewards;
   states: States;
+  subscription_charges: SubscriptionCharges;
+  subscription_plan_features: SubscriptionPlanFeatures;
+  subscription_plans: SubscriptionPlans;
   user_blocks: UserBlocks;
   user_coin_transactions: UserCoinTransactions;
   user_profiles: UserProfiles;
   user_reports: UserReports;
   user_rewards: UserRewards;
+  user_subscriptions: UserSubscriptions;
   users: Users;
 }
