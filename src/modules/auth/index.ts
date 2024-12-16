@@ -2,7 +2,7 @@ import { CustomHono } from "@/types/app.js"
 import { AppError, createJsonBody, createSuccessRouteDefinition, defaultResponses, ERROR_CODES, sendSuccessWithAuthUser } from "@/utils/response.js";
 import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
-import { createAuthToken, createUser, getUserWithProfileByEmail, getUserWithProfileById, updateUserProfile } from "./auth.service.js";
+import { createAuthToken, createUser, deleteUserAccount, getUserWithProfileByEmail, getUserWithProfileById, updateUserProfile } from "./auth.service.js";
 import { StatusCodes } from "http-status-codes";
 import { isAuthenticated } from "@/middlewares/authenticated.js";
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js";
@@ -35,7 +35,7 @@ const signinResponseBodySchema = z.object({
 const signinRoute = createRoute({
     method: 'post',
     path: '/signin',
-    tags: ['auth'],
+    tags: [moduleTag],
     request: {
         body: createJsonBody(signinRequestBodySchema)
     },
@@ -85,7 +85,7 @@ app.openapi(signinRoute, async (c) => {
 const meRoute = createRoute({
     method: 'get',
     path: '/me',
-    tags: ['auth'],
+    tags: [moduleTag],
     middleware: [isAuthenticated] as const,
     security: [{ bearerAuth: [] }],
     responses: {
@@ -167,7 +167,7 @@ const profileUpdateResponseSchema = z.object({})
 const updateProfileRoute = createRoute({
     method: 'post',
     path: '/me/update-profile',
-    tags: ['auth'],
+    tags: [moduleTag],
     middleware: [isAuthenticated] as const,
     security: [{ bearerAuth: [] }],
     request: {
@@ -254,4 +254,45 @@ app.openapi(updateProfileRoute, async (c) => {
     c.set('user', user)
 
     return sendSuccessWithAuthUser(c, {}, 'Profile updated successfully');
+});
+
+
+// Delete Account
+const deleteAccountResponseSchema = z.object({
+    email: z.string().email()
+});
+
+const deleteAccountRoute = createRoute({
+    method: 'post',
+    path: '/delete-account',
+    tags: [moduleTag],
+    middleware: [isAuthenticated] as const,
+    security: [{ bearerAuth: [] }],
+    request: {
+        body: createJsonBody(z.object({
+            confirmation: z.literal('DELETE_MY_ACCOUNT')
+                .openapi({ example: 'DELETE_MY_ACCOUNT' })
+        }))
+    },
+    responses: {
+        200: createSuccessRouteDefinition(deleteAccountResponseSchema, 'Account deleted successfully'),
+        ...defaultResponses
+    },
+});
+
+app.openapi(deleteAccountRoute, async (c) => {
+    const { confirmation } = c.req.valid('json');
+    const user = c.get('user');
+
+    if (confirmation !== 'DELETE_MY_ACCOUNT') {
+        throw new AppError(
+            StatusCodes.BAD_REQUEST,
+            ERROR_CODES.VALIDATION_ERROR,
+            'Invalid confirmation text'
+        );
+    }
+
+    await deleteUserAccount(user.id);
+
+    return sendSuccessWithAuthUser(c, { email: user.email }, 'Account deleted successfully');
 });

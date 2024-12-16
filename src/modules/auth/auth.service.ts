@@ -3,7 +3,7 @@ import { db } from "@/database/database.js"
 import { UserProfiles } from "@/database/db.js";
 import { AuthUser } from "@/types/user.js";
 import { sign } from 'hono/jwt'
-import { Insertable } from "kysely";
+import { Insertable, sql } from "kysely";
 
 
 export const createAuthToken = async (user: AuthUser): Promise<string> => {
@@ -22,6 +22,7 @@ export const getUserWithProfileByEmail = async (email: string): Promise<AuthUser
     .selectFrom("users")
     .selectAll()
     .where("email", "=", email)
+    .where("deleted_at", "is", null)
     .executeTakeFirst();
 
   if (!user) return null;
@@ -43,6 +44,7 @@ export const getUserWithProfileById = async (userId: number): Promise<AuthUser |
     .selectFrom("users")
     .selectAll()
     .where("id", "=", userId)
+    .where("deleted_at", "is", null)
     .executeTakeFirst();
 
   if (!user) return null;
@@ -97,4 +99,19 @@ export const updateUserProfile = async (userId: number, profileData: Partial<Ins
     .executeTakeFirst();
 
   return;
+};
+
+export const deleteUserAccount = async (userId: number): Promise<void> => {
+  await db.transaction().execute(async (trx) => {
+    const randomString = Math.random().toString(36).substring(2, 8);
+
+    await trx
+      .updateTable("users")
+      .where("id", "=", userId)
+      .set({
+        deleted_at: sql`NOW()`,
+        email: sql`CONCAT('del_', ${randomString}, '_', email)` as any
+      })
+      .execute();
+  });
 };

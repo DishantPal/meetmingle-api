@@ -21,6 +21,7 @@ const getUserWithProfileByUserId = async (id: number): Promise<AuthUser | null> 
         .selectFrom("users")
         .selectAll()
         .where("id", "=", id)
+        .where("deleted_at", "is", null)
         .executeTakeFirst();
 
     if (!user) return null;
