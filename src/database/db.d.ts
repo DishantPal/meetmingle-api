@@ -208,6 +208,7 @@ export interface UserProfiles {
   profile_name: string | null;
   relationship_status: string | null;
   state: string | null;
+  timezone: Generated<string>;
   updated_at: Generated<Date>;
   user_id: number;
 }

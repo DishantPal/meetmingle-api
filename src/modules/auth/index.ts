@@ -159,6 +159,11 @@ const updateUserProfileSchema = z.object({
         .openapi({ example: false }),
     is_fitness_enthusiast: z.coerce.boolean().optional()
         .openapi({ example: true }),
+    timezone: z.string()
+        .min(1)
+        .max(50)
+        .optional()
+        .openapi({ example: 'Asia/Kolkata' }),
 });
 
 const profileUpdateResponseSchema = z.object({})
@@ -223,6 +228,7 @@ const profileFormDataToJson = (formData: FormData): Partial<Insertable<UserProfi
 
     return updateData;
 }
+
 // 3. API Handler
 app.openapi(updateProfileRoute, async (c) => {
     const formData = await c.req.formData();
