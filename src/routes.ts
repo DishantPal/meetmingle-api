@@ -7,6 +7,8 @@ import { userRoutes } from './modules/user/index.js'
 import { coinRoutes } from './modules/coins/index.js'
 import { subscriptionRoutes } from './modules/subscriptions/index.js'
 
+import { matchRoutes, setupMatchModule } from './modules/match'
+
 export function setupRoutes(app: CustomHono<Env>) {
   // Register routes
   // app.route('/users', testUserRoutes)
@@ -16,6 +18,7 @@ export function setupRoutes(app: CustomHono<Env>) {
   app.route('/user', userRoutes)
   app.route('/coins', coinRoutes)
   app.route('/subscriptions', subscriptionRoutes)
+  app.route('/match', matchRoutes)
 
   return app
 }

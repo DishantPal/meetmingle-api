@@ -76,6 +76,35 @@ export interface Languages {
   updated_at: Generated<Date>;
 }
 
+export interface MatchHistory {
+  call_type: string;
+  created_at: Generated<Date>;
+  duration_seconds: number | null;
+  end_reason: string | null;
+  end_time: Date | null;
+  id: Generated<number>;
+  start_time: Date;
+  updated_at: Generated<Date>;
+  user1_id: number;
+  user2_id: number;
+}
+
+export interface MatchingQueue {
+  age_max: number | null;
+  age_min: number | null;
+  call_type: string;
+  country: string | null;
+  created_at: Generated<Date>;
+  entry_time: Generated<Date>;
+  gender: string | null;
+  id: Generated<number>;
+  interests: Json | null;
+  preferred_language: string | null;
+  status: Generated<string>;
+  updated_at: Generated<Date>;
+  user_id: number;
+}
+
 export interface Pages {
   content: string;
   created_at: Generated<Date>;
@@ -268,6 +297,8 @@ export interface DB {
   content_blocks: ContentBlocks;
   countries: Countries;
   languages: Languages;
+  match_history: MatchHistory;
+  matching_queue: MatchingQueue;
   pages: Pages;
   report_reasons: ReportReasons;
   rewards: Rewards;
