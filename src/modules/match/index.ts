@@ -9,6 +9,7 @@ import { StatusCodes } from "http-status-codes"
 import { ERROR_CODES } from "@/utils/response.js"
 import { setupMatchSocket } from "./socket.js"
 import { endMatch } from "./match.service.js"
+import { db } from "@/database/database.js"
 
 const app = CustomHonoAppFactory()
 export { app as matchRoutes }

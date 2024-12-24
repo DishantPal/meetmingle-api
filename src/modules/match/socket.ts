@@ -1,9 +1,9 @@
 // src/modules/match/socket.ts
 import { Server, Socket } from 'socket.io';
 import { Hono } from 'hono';
-import jwt from 'jsonwebtoken';
-import { addToMatchingQueue, removeFromQueue, findMatch } from './match.service';
+import { addToMatchingQueue, removeFromQueue, findMatch } from './match.service.js';
 import { decodeSocketAuthToken } from './socketAuth.service.js';
+import { CustomHono } from '@/types/app.js';
 
 interface MatchFilters {
   call_type: 'video' | 'audio';  // mandatory
@@ -27,7 +27,9 @@ interface AuthenticatedSocket extends Socket {
   };
 }
 
-export const setupMatchSocket = (app: Hono) => {
+const connectedUsers = new Map<number, string>();
+
+export const setupMatchSocket = (app: CustomHono) => {
   const io = new Server({
     cors: {
       origin: process.env.FRONTEND_URL,
@@ -55,6 +57,9 @@ export const setupMatchSocket = (app: Hono) => {
   io.on('connection', (socket: AuthenticatedSocket) => {
     console.log(`User connected: ${socket.data.user.id}`);
 
+    // Store socket mapping when user connects
+    connectedUsers.set(socket.data.user.id, socket.id);
+
     // Start finding match
     socket.on('findMatch', async (filters: MatchFilters) => {
       try {
@@ -81,23 +86,30 @@ export const setupMatchSocket = (app: Hono) => {
         // Try to find a match
         const match = await findMatch(userId, filters);
         if (match) {
+          const matchedSocketId = connectedUsers.get(match.user_id);
+
+          if (!matchedSocketId) {
+            socket.emit('error', { message: 'Matched user is no longer available' });
+            return;
+          }
+
           // Clear timeout as match found
           clearTimeout(socket.data.matchTimeout);
           
           // Create room for these users
-          const roomId = `match_${userId}_${match.userId}`;
+          const roomId = `match_${userId}_${match.user_id}`;
           
           // Join room
           socket.join(roomId);
-          io.to(match.socketId).socketsJoin(roomId);
+          io.to(matchedSocketId).socketsJoin(roomId);
 
           // Notify both users
           socket.emit('matchFound', { 
             roomId, 
-            userId: match.userId,
+            userId: match.user_id,
             callType: filters.call_type
           });
-          io.to(match.socketId).emit('matchFound', { 
+          io.to(matchedSocketId).emit('matchFound', { 
             roomId, 
             userId,
             callType: filters.call_type
@@ -163,6 +175,9 @@ export const setupMatchSocket = (app: Hono) => {
     // Handle disconnection
     socket.on('disconnect', async () => {
       try {
+        // Remove from map on disconnect
+        connectedUsers.delete(socket.data.user.id);
+
         console.log(`User disconnected: ${socket.data.user.id}`);
         
         // Clear any pending timeouts
