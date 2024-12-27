@@ -1,12 +1,11 @@
 // src/modules/match/socket.ts
 import { Server, Socket } from 'socket.io';
-import { Hono } from 'hono';
-import { addToMatchingQueue, removeFromQueue, findMatch } from './match.service.js';
-import { decodeSocketAuthToken } from './socketAuth.service.js';
 import { CustomHono } from '@/types/app.js';
+import { addToMatchingQueue, removeFromQueue, findMatch, startMatch } from './match.service.js';
+import { decodeSocketAuthToken } from './socketAuth.service.js';
 
 interface MatchFilters {
-  call_type: 'video' | 'audio';  // mandatory
+  call_type: 'video' | 'audio';
   gender?: string;
   preferred_language?: string;
   country?: string;
@@ -16,23 +15,30 @@ interface MatchFilters {
 }
 
 interface SocketUser {
-    id: number;
-    email: string;
+  id: number;
+  email: string;
 }
+
+type MatchingState = 'idle' | 'finding' | 'in_call';
 
 interface AuthenticatedSocket extends Socket {
   data: {
     user: SocketUser;
     matchTimeout?: NodeJS.Timeout;
+    matchingState: MatchingState;
+    currentFilters?: MatchFilters;
   };
 }
 
+// Store connected users and their socket IDs
 const connectedUsers = new Map<number, string>();
+
+const MATCH_TIMEOUT = 30000; // 30 seconds to find match
 
 export const setupMatchSocket = (app: CustomHono) => {
   const io = new Server({
     cors: {
-      origin: process.env.FRONTEND_URL,
+      origin: "*",
       methods: ["GET", "POST"]
     },
     path: "/match"
@@ -42,12 +48,11 @@ export const setupMatchSocket = (app: CustomHono) => {
   io.use(async (socket: AuthenticatedSocket, next) => {
     try {
       const token = socket.handshake.auth.token;
-      if (!token) {
-        return next(new Error('Token required'));
-      }
+      if (!token) return next(new Error('Token required'));
 
       const decoded = await decodeSocketAuthToken(token) as SocketUser;
-      socket.data.user = decoded;
+      socket.data.user = decoded?.user;
+      socket.data.matchingState = 'idle';
       next();
     } catch (error) {
       next(new Error('Invalid token'));
@@ -55,31 +60,44 @@ export const setupMatchSocket = (app: CustomHono) => {
   });
 
   io.on('connection', (socket: AuthenticatedSocket) => {
-    console.log(`User connected: ${socket.data.user.id}`);
+    if (!socket.data?.user?.id) return;
 
-    // Store socket mapping when user connects
-    connectedUsers.set(socket.data.user.id, socket.id);
+    const userId = socket.data.user.id;
+    console.log(`User connected: ${userId}`);
+
+    // Store socket mapping
+    connectedUsers.set(userId, socket.id);
 
     // Start finding match
     socket.on('findMatch', async (filters: MatchFilters) => {
+      console.log("findMatch called:", { filters, userId });
+      
       try {
-        const userId = socket.data.user.id;
-        console.log(`Finding match for user ${userId} with filters:`, filters);
+        // Validate state and call_type
+        if (socket.data.matchingState !== 'idle') {
+          socket.emit('error', { message: 'Already in matching or call' });
+          return;
+        }
 
-        // Validate call_type
         if (!filters.call_type || !['video', 'audio'].includes(filters.call_type)) {
           socket.emit('error', { message: 'Invalid call type' });
           return;
         }
 
+        socket.data.matchingState = 'finding';
+        socket.data.currentFilters = filters;
+
         // Add to matching queue
         await addToMatchingQueue(userId, filters);
         
-        // Start 30s timeout for finding match
+        // Start match finding timeout
         const timeout = setTimeout(async () => {
-          await removeFromQueue(userId);
-          socket.emit('noMatchesAvailable');
-        }, 30000);
+          if (socket.data.matchingState === 'finding') {
+            await removeFromQueue(userId);
+            socket.data.matchingState = 'idle';
+            socket.emit('noMatchesAvailable');
+          }
+        }, MATCH_TIMEOUT);
 
         socket.data.matchTimeout = timeout;
 
@@ -89,111 +107,113 @@ export const setupMatchSocket = (app: CustomHono) => {
           const matchedSocketId = connectedUsers.get(match.user_id);
 
           if (!matchedSocketId) {
-            socket.emit('error', { message: 'Matched user is no longer available' });
+            socket.emit('error', { message: 'Matched user not available' });
             return;
           }
 
-          // Clear timeout as match found
+          // Clear match finding timeout
           clearTimeout(socket.data.matchTimeout);
           
-          // Create room for these users
+          // Create room
           const roomId = `match_${userId}_${match.user_id}`;
-          
-          // Join room
           socket.join(roomId);
           io.to(matchedSocketId).socketsJoin(roomId);
 
-          // Notify both users
-          socket.emit('matchFound', { 
+          // Update states
+          socket.data.matchingState = 'in_call';
+          io.to(matchedSocketId).emit('matchingState', 'in_call');
+
+          // Start signaling process
+          socket.emit('startSignaling', { 
             roomId, 
             userId: match.user_id,
             callType: filters.call_type
           });
-          io.to(matchedSocketId).emit('matchFound', { 
+          io.to(matchedSocketId).emit('startSignaling', { 
             roomId, 
             userId,
             callType: filters.call_type
           });
+
+          // Record match in history
+          await startMatch(userId, match.user_id, filters.call_type);
         }
       } catch (error) {
         console.error('Error in findMatch:', error);
+        socket.data.matchingState = 'idle';
         socket.emit('error', { message: 'Failed to start matching' });
       }
     });
 
     // Handle WebRTC signaling
     socket.on('webrtcSignal', (data: { signal: any; roomId: string }) => {
-      console.log(`Forwarding WebRTC signal in room: ${data.roomId}`);
+      console.log("webrtcSignal:", { roomId: data.roomId, userId });
+      
+      if (socket.data.matchingState !== 'in_call') return;
+      
       socket.to(data.roomId).emit('webrtcSignal', {
         signal: data.signal,
-        from: socket.data.user.id
+        from: userId
       });
     });
 
-    // Handle match rejection
-    socket.on('rejectMatch', async (roomId: string) => {
+    // Handle end session
+    socket.on('endSession', async (roomId: string) => {
+      console.log("endSession:", { roomId, userId });
+      
       try {
-        console.log(`User ${socket.data.user.id} rejected match in room: ${roomId}`);
-        
-        // Notify other user
-        socket.to(roomId).emit('matchRejected', {
-          userId: socket.data.user.id
-        });
+        // Clear timeout if in finding state
+        if (socket.data.matchTimeout) {
+          clearTimeout(socket.data.matchTimeout);
+        }
 
-        // Leave room
-        const room = await io.in(roomId).fetchSockets();
-        room.forEach(member => {
-          member.leave(roomId);
-        });
+        // Remove from queue if in finding state
+        if (socket.data.matchingState === 'finding') {
+          await removeFromQueue(userId);
+        }
+
+        // If in room, notify other user
+        if (roomId) {
+          socket.to(roomId).emit('sessionEnded', {
+            userId,
+            reason: 'user_ended'
+          });
+
+          // Leave room
+          socket.leave(roomId);
+        }
+
+        // Reset state
+        socket.data.matchingState = 'idle';
+        socket.emit('sessionEnded', { reason: 'self_ended' });
 
       } catch (error) {
-        console.error('Error in rejectMatch:', error);
-      }
-    });
-
-    // Handle call end
-    socket.on('endCall', async (roomId: string) => {
-      try {
-        console.log(`Call ended in room: ${roomId}`);
-        
-        // Notify other user
-        socket.to(roomId).emit('callEnded', {
-          userId: socket.data.user.id
-        });
-
-        // Cleanup room
-        const room = await io.in(roomId).fetchSockets();
-        room.forEach(member => {
-          member.leave(roomId);
-        });
-
-      } catch (error) {
-        console.error('Error in endCall:', error);
+        console.error('Error in endSession:', error);
+        socket.emit('error', { message: 'Failed to end session' });
       }
     });
 
     // Handle disconnection
     socket.on('disconnect', async () => {
+      console.log("disconnect:", { userId });
+      
       try {
-        // Remove from map on disconnect
-        connectedUsers.delete(socket.data.user.id);
-
-        console.log(`User disconnected: ${socket.data.user.id}`);
+        connectedUsers.delete(userId);
         
-        // Clear any pending timeouts
         if (socket.data.matchTimeout) {
           clearTimeout(socket.data.matchTimeout);
         }
 
-        // Remove from queue if present
-        await removeFromQueue(socket.data.user.id);
+        if (socket.data.matchingState === 'finding') {
+          await removeFromQueue(userId);
+        }
 
-        // Notify any matched users
-        const rooms = socket.rooms;
-        rooms.forEach(roomId => {
+        // Notify rooms if any
+        socket.rooms.forEach(roomId => {
           if (roomId.startsWith('match_')) {
-            socket.to(roomId).emit('peerDisconnected', {
-              userId: socket.data.user.id
+            socket.to(roomId).emit('sessionEnded', {
+              userId,
+              reason: 'user_disconnected'
             });
           }
         });
