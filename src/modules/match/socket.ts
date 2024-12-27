@@ -71,6 +71,7 @@ export const setupMatchSocket = (app: CustomHono) => {
     // Start finding match
     socket.on('findMatch', async (filters: MatchFilters) => {
       console.log("findMatch called:", { filters, userId });
+      console.log("🚀 ~ socket.on ~ socket.data:", socket.data)
       
       try {
         // Validate state and call_type
@@ -117,23 +118,22 @@ export const setupMatchSocket = (app: CustomHono) => {
           // Create room
           const roomId = `match_${userId}_${match.user_id}`;
           socket.join(roomId);
-          io.to(matchedSocketId).socketsJoin(roomId);
+          io.to(matchedSocketId).socketsJoin({roomId});
 
           // Update states
           socket.data.matchingState = 'in_call';
           io.to(matchedSocketId).emit('matchingState', 'in_call');
 
-          // Start signaling process
-          socket.emit('startSignaling', { 
+          const signalStarterUserId = Number(userId) < Number(match.user_id) ? Number(userId) : Number(match.user_id)
+          const canStartSignaling = signalStarterUserId == Number(userId)
+          const signalInitiateData = { 
             roomId, 
             userId: match.user_id,
-            callType: filters.call_type
-          });
-          io.to(matchedSocketId).emit('startSignaling', { 
-            roomId, 
-            userId,
-            callType: filters.call_type
-          });
+            callType: filters.call_type,
+            canStartSignaling,
+          };
+
+          io.to(roomId).emit('startSignaling', signalInitiateData );
 
           // Record match in history
           await startMatch(userId, match.user_id, filters.call_type);
@@ -146,15 +146,41 @@ export const setupMatchSocket = (app: CustomHono) => {
     });
 
     // Handle WebRTC signaling
-    socket.on('webrtcSignal', (data: { signal: any; roomId: string }) => {
-      console.log("webrtcSignal:", { roomId: data.roomId, userId });
+    // socket.on('webrtcSignal', (data: { signal: any; roomId: string }) => {
+    //   console.log("webrtcSignal:", { roomId: data.roomId, userId });
       
-      if (socket.data.matchingState !== 'in_call') return;
+    //   if (socket.data.matchingState !== 'in_call') return;
       
-      socket.to(data.roomId).emit('webrtcSignal', {
-        signal: data.signal,
-        from: userId
-      });
+    //   socket.to(data.roomId).emit('webrtcSignal', {
+    //     signal: data.signal,
+    //     from: userId
+    //   });
+    // });
+
+    // Add type definition
+    type SignalType = 'offer' | 'answer';
+
+    // Update the event handler
+    socket.on('webrtcSignal', (data: { 
+        signal: any; 
+        roomId: string; 
+        to: number;
+        type: SignalType 
+    }) => {
+        console.log("webrtcSignal:", { 
+            data 
+        });
+        
+        if (socket.data.matchingState !== 'in_call') return;
+
+        const targetSocketId = connectedUsers.get(data.to);
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('webrtcSignal', {
+                signal: data.signal,
+                from: userId,
+                type: data.type    // Forward the signal type
+            });
+        }
     });
 
     // Handle end session
