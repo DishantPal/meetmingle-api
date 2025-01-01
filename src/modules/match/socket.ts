@@ -24,7 +24,7 @@ type MatchingState = 'idle' | 'finding' | 'in_call';
 interface AuthenticatedSocket extends Socket {
   data: {
     user: SocketUser;
-    matchTimeout?: NodeJS.Timeout;
+    // matchTimeout?: NodeJS.Timeout;
     matchingState: MatchingState;
     currentFilters?: MatchFilters;
   };
@@ -33,7 +33,7 @@ interface AuthenticatedSocket extends Socket {
 // Store connected users and their socket IDs
 const connectedUsers = new Map<number, string>();
 
-const MATCH_TIMEOUT = 30000; // 30 seconds to find match
+// const MATCH_TIMEOUT = 30000; // 30 seconds to find match
 
 export const setupMatchSocket = (app: CustomHono) => {
   const io = new Server({
@@ -41,7 +41,8 @@ export const setupMatchSocket = (app: CustomHono) => {
       origin: "*",
       methods: ["GET", "POST"]
     },
-    path: "/match"
+    path: "/match",
+    transports: ['websocket', 'polling'], // Allow both WebSocket and polling
   });
 
   // JWT Authentication middleware
@@ -71,8 +72,8 @@ export const setupMatchSocket = (app: CustomHono) => {
     // Start finding match
     socket.on('findMatch', async (filters: MatchFilters) => {
       console.log("findMatch called:", { filters, userId });
-      console.log("🚀 ~ socket.on ~ socket.data:", socket.data)
-      
+      console.log("🚀 ~ socket.on ~ socket.data:", socket.data);
+
       try {
         // Validate state and call_type
         if (socket.data.matchingState !== 'idle') {
@@ -90,50 +91,97 @@ export const setupMatchSocket = (app: CustomHono) => {
 
         // Add to matching queue
         await addToMatchingQueue(userId, filters);
-        
-        // Start match finding timeout
-        const timeout = setTimeout(async () => {
-          if (socket.data.matchingState === 'finding') {
-            await removeFromQueue(userId);
-            socket.data.matchingState = 'idle';
-            socket.emit('noMatchesAvailable');
-          }
-        }, MATCH_TIMEOUT);
 
-        socket.data.matchTimeout = timeout;
+        // // Start match finding timeout
+        // const timeout = setTimeout(async () => {
+        //   if (socket.data.matchingState === 'finding') {
+        //     await removeFromQueue(userId);
+        //     socket.data.matchingState = 'idle';
+        //     socket.emit('noMatchesAvailable');
+        //   }
+        // }, MATCH_TIMEOUT);
+
+        // socket.data.matchTimeout = timeout;
 
         // Try to find a match
         const match = await findMatch(userId, filters);
+        console.log("🚀 ~ socket.on ~ match:", match)
         if (match) {
+          
           const matchedSocketId = connectedUsers.get(match.user_id);
+          
 
+          console.log('before not matchedSocketId')
+          console.log("🚀 ~ socket.on ~ matchedSocketId:", matchedSocketId)
           if (!matchedSocketId) {
+            console.log('after not matchedSocketId')
             socket.emit('error', { message: 'Matched user not available' });
             return;
           }
 
+          socket.emit('xyz', {test: 123});
+          io.to(matchedSocketId).emit('xyz', {test: 456})
+
           // Clear match finding timeout
-          clearTimeout(socket.data.matchTimeout);
-          
-          // Create room
-          const roomId = `match_${userId}_${match.user_id}`;
+          // clearTimeout(socket.data.matchTimeout);
+
+          // Create room with sorted user IDs for consistency
+          const [smallerId, largerId] = [userId, match.user_id]
+            .map(Number)
+            .sort((a, b) => a - b);
+          const roomId = `match_${smallerId}_${largerId}`;
+
+          // Join both users to room
           socket.join(roomId);
-          io.to(matchedSocketId).socketsJoin({roomId});
+          io.to(matchedSocketId).socketsJoin(roomId);
 
           // Update states
           socket.data.matchingState = 'in_call';
           io.to(matchedSocketId).emit('matchingState', 'in_call');
 
-          const signalStarterUserId = Number(userId) < Number(match.user_id) ? Number(userId) : Number(match.user_id)
-          const canStartSignaling = signalStarterUserId == Number(userId)
-          const signalInitiateData = { 
-            roomId, 
+          console.log("startSignaling calling current user : ", {
+            userId, signalData: {
+              roomId,
+              userId: match.user_id,
+              callType: filters.call_type,
+              matchedUserId: match.user_id,
+              canStartSignaling: [userId, match.user_id].map(Number).sort((a, b) => a - b)[0] === userId
+            }
+          })
+
+          // send event to current connectedUser
+          const cu = socket.emit('startSignaling', {
+            roomId,
             userId: match.user_id,
             callType: filters.call_type,
-            canStartSignaling,
-          };
+            matchedUserId: match.user_id,
+            canStartSignaling: [userId, match.user_id].map(Number).sort((a, b) => a - b)[0] === userId
+          });
 
-          io.to(roomId).emit('startSignaling', signalInitiateData );
+          console.log(cu);
+
+          console.log("startSignaling calling matched user : ", {
+            userId: match.user_id, signalData: {
+              roomId,
+              userId: userId,
+              callType: filters.call_type,
+              matchedUserId: userId,
+              canStartSignaling: [userId, match.user_id].map(Number).sort((a, b) => a - b)[0] === match.user_id
+            }
+          })
+
+          // send event to matched user
+          const mu = io.to(matchedSocketId).emit('startSignaling', {
+            roomId,
+            userId: userId,
+            callType: filters.call_type,
+            matchedUserId: userId,
+            canStartSignaling: [userId, match.user_id].map(Number).sort((a, b) => a - b)[0] === match.user_id
+          });
+
+          console.log(mu);
+
+          // io.to(roomId).emit('startSignaling', signalInitiateData );
 
           // Record match in history
           await startMatch(userId, match.user_id, filters.call_type);
@@ -145,53 +193,43 @@ export const setupMatchSocket = (app: CustomHono) => {
       }
     });
 
-    // Handle WebRTC signaling
-    // socket.on('webrtcSignal', (data: { signal: any; roomId: string }) => {
-    //   console.log("webrtcSignal:", { roomId: data.roomId, userId });
-      
-    //   if (socket.data.matchingState !== 'in_call') return;
-      
-    //   socket.to(data.roomId).emit('webrtcSignal', {
-    //     signal: data.signal,
-    //     from: userId
-    //   });
-    // });
-
     // Add type definition
     type SignalType = 'offer' | 'answer';
 
     // Update the event handler
-    socket.on('webrtcSignal', (data: { 
-        signal: any; 
-        roomId: string; 
-        to: number;
-        type: SignalType 
+    socket.on('webrtcSignal', (data: {
+      signal: any;
+      roomId: string;
+      to: number;
+      type: SignalType
     }) => {
-        console.log("webrtcSignal:", { 
-            data 
-        });
-        
-        if (socket.data.matchingState !== 'in_call') return;
+      console.log("webrtcSignal:", {
+        roomId: data.roomId, to: data.to, type: data.type
+      });
 
-        const targetSocketId = connectedUsers.get(data.to);
-        if (targetSocketId) {
-            io.to(targetSocketId).emit('webrtcSignal', {
-                signal: data.signal,
-                from: userId,
-                type: data.type    // Forward the signal type
-            });
-        }
+      // if (socket.data.matchingState !== 'in_call') return;
+
+      const targetSocketId = connectedUsers.get(data.to);
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('webrtcSignal', {
+          signal: data.signal,
+          userId: userId,
+          roomId: data.roomId,
+          from: userId,
+          type: data.type    // Forward the signal type
+        });
+      }
     });
 
     // Handle end session
     socket.on('endSession', async (roomId: string) => {
       console.log("endSession:", { roomId, userId });
-      
+
       try {
         // Clear timeout if in finding state
-        if (socket.data.matchTimeout) {
-          clearTimeout(socket.data.matchTimeout);
-        }
+        // if (socket.data.matchTimeout) {
+        //   clearTimeout(socket.data.matchTimeout);
+        // }
 
         // Remove from queue if in finding state
         if (socket.data.matchingState === 'finding') {
@@ -222,13 +260,13 @@ export const setupMatchSocket = (app: CustomHono) => {
     // Handle disconnection
     socket.on('disconnect', async () => {
       console.log("disconnect:", { userId });
-      
+
       try {
         connectedUsers.delete(userId);
-        
-        if (socket.data.matchTimeout) {
-          clearTimeout(socket.data.matchTimeout);
-        }
+
+        // if (socket.data.matchTimeout) {
+        //   clearTimeout(socket.data.matchTimeout);
+        // }
 
         if (socket.data.matchingState === 'finding') {
           await removeFromQueue(userId);

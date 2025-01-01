@@ -47,7 +47,7 @@ const applyGlobalMiddlewares = (app: CustomHono) => {
         },
     });
     // Apply the rate limiting middleware to all requests.
-    app.use(limiter);
+    // app.use(limiter);
 }
 
 export default applyGlobalMiddlewares;

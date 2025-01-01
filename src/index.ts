@@ -15,4 +15,15 @@ const server = serve({
 
 // Setup WebSocket
 const io = setupMatchModule(app)
-io.attach(server)
+// io.attach(server)
+
+io.attach(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["auth-token", "Content-Type"]
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ['websocket', 'polling']
+});
