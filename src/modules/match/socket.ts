@@ -221,6 +221,29 @@ export const setupMatchSocket = (app: CustomHono) => {
       }
     });
 
+    // Update the event handler
+    socket.on('exchangeIceCandidate', (data: {
+      signal: any;
+      roomId: string;
+      to: number;
+      type: SignalType
+    }) => {
+      console.log("exchangeIceCandidate:", {
+        roomId: data.roomId, to: data.to, type: data.type
+      });
+
+      const targetSocketId = connectedUsers.get(data.to);
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('exchangeIceCandidate', {
+          signal: data.signal,
+          userId: userId,
+          roomId: data.roomId,
+          from: userId,
+          type: data.type
+        });
+      }
+    });
+
     // Handle end session
     socket.on('endSession', async (roomId: string) => {
       console.log("endSession:", { roomId, userId });
