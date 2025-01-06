@@ -19,13 +19,13 @@ interface SocketUser {
   email: string;
 }
 
-type MatchingState = 'idle' | 'finding' | 'in_call';
+// type MatchingState = 'idle' | 'finding' | 'in_call';
 
 interface AuthenticatedSocket extends Socket {
   data: {
     user: SocketUser;
     // matchTimeout?: NodeJS.Timeout;
-    matchingState: MatchingState;
+    // matchingState: MatchingState;
     currentFilters?: MatchFilters;
   };
 }
@@ -53,7 +53,7 @@ export const setupMatchSocket = (app: CustomHono) => {
 
       const decoded = await decodeSocketAuthToken(token) as SocketUser;
       socket.data.user = decoded?.user;
-      socket.data.matchingState = 'idle';
+      // socket.data.matchingState = 'idle';
       next();
     } catch (error) {
       next(new Error('Invalid token'));
@@ -76,17 +76,17 @@ export const setupMatchSocket = (app: CustomHono) => {
 
       try {
         // Validate state and call_type
-        if (socket.data.matchingState !== 'idle') {
-          socket.emit('error', { message: 'Already in matching or call' });
-          return;
-        }
+        // if (socket.data.matchingState !== 'idle') {
+          // socket.emit('error', { message: 'Already in matching or call' });
+          // return;
+        // }
 
         if (!filters.call_type || !['video', 'audio'].includes(filters.call_type)) {
           socket.emit('error', { message: 'Invalid call type' });
           return;
         }
 
-        socket.data.matchingState = 'finding';
+        // socket.data.matchingState = 'finding';
         socket.data.currentFilters = filters;
 
         // Add to matching queue
@@ -136,8 +136,8 @@ export const setupMatchSocket = (app: CustomHono) => {
           io.to(matchedSocketId).socketsJoin(roomId);
 
           // Update states
-          socket.data.matchingState = 'in_call';
-          io.to(matchedSocketId).emit('matchingState', 'in_call');
+          // socket.data.matchingState = 'in_call';
+          // io.to(matchedSocketId).emit('matchingState', 'in_call');
 
           console.log("startSignaling calling current user : ", {
             userId, signalData: {
@@ -188,7 +188,7 @@ export const setupMatchSocket = (app: CustomHono) => {
         }
       } catch (error) {
         console.error('Error in findMatch:', error);
-        socket.data.matchingState = 'idle';
+        // socket.data.matchingState = 'idle';
         socket.emit('error', { message: 'Failed to start matching' });
       }
     });
@@ -245,7 +245,7 @@ export const setupMatchSocket = (app: CustomHono) => {
     });
 
     // Handle end session
-    socket.on('endSession', async (roomId: string) => {
+    socket.on('endSession', async ({roomId}) => {
       console.log("endSession:", { roomId, userId });
 
       try {
@@ -255,13 +255,13 @@ export const setupMatchSocket = (app: CustomHono) => {
         // }
 
         // Remove from queue if in finding state
-        if (socket.data.matchingState === 'finding') {
+        // if (socket.data.matchingState === 'finding') {
           await removeFromQueue(userId);
-        }
+        // }
 
         // If in room, notify other user
         if (roomId) {
-          socket.to(roomId).emit('sessionEnded', {
+          socket.to(roomId).emit('endSession', {
             userId,
             reason: 'user_ended'
           });
@@ -271,8 +271,8 @@ export const setupMatchSocket = (app: CustomHono) => {
         }
 
         // Reset state
-        socket.data.matchingState = 'idle';
-        socket.emit('sessionEnded', { reason: 'self_ended' });
+        // socket.data.matchingState = 'idle';
+        socket.emit('endSession', { reason: 'self_ended' });
 
       } catch (error) {
         console.error('Error in endSession:', error);
@@ -291,14 +291,14 @@ export const setupMatchSocket = (app: CustomHono) => {
         //   clearTimeout(socket.data.matchTimeout);
         // }
 
-        if (socket.data.matchingState === 'finding') {
+        // if (socket.data.matchingState === 'finding') {
           await removeFromQueue(userId);
-        }
+        // }
 
         // Notify rooms if any
         socket.rooms.forEach(roomId => {
           if (roomId.startsWith('match_')) {
-            socket.to(roomId).emit('sessionEnded', {
+            socket.to(roomId).emit('endSession', {
               userId,
               reason: 'user_disconnected'
             });
