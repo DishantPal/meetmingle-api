@@ -112,7 +112,7 @@ export const createUserSubscription = async (params: CreateSubscriptionParams): 
 }
 
 export const getUserActiveSubscriptionWithPlan = async (userId: number) => {
-    return await db
+    let userActiveSubscription = await db
         .selectFrom("user_subscriptions")
         .selectAll()
         .select((eb) => [
@@ -141,4 +141,23 @@ export const getUserActiveSubscriptionWithPlan = async (userId: number) => {
         ]))
         .orderBy("created_at", "desc")
         .executeTakeFirst();
+
+    if(userActiveSubscription) return userActiveSubscription;
+
+    const freePlan = await getSubscriptionPlan('FREE');
+    if(!freePlan) throw new Error('Free plan not found');
+
+    const user = await db.selectFrom('users').selectAll().where('id', '=', userId).executeTakeFirst();
+    if(!user) throw new Error('User not found');
+
+    const defaultFreeUserSubscription = {
+        user_id: userId,
+        plan_id: freePlan.id,
+        status: 'active',
+        start_date: user.created_at,
+        end_date: null,
+        plan: freePlan,
+    };
+
+    return defaultFreeUserSubscription;
 }

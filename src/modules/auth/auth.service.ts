@@ -74,6 +74,7 @@ export const createUser = async (createUserInput: CreateUserInput): Promise<void
       email: createUserInput.email,
       provider_type: createUserInput.provider_type,
       provider_id: createUserInput.provider_id,
+      deleted_at: null
     })
     .executeTakeFirst();
 

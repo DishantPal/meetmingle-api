@@ -45,7 +45,8 @@ const subscriptionPlanSchema = z.object({
     is_active: z.boolean(),
     store_product_id_ios: z.string().nullable(),
     store_product_id_android: z.string().nullable(),
-    features: z.array(planFeatureSchema)
+    features: z.array(planFeatureSchema),
+    user_status: z.enum(['active', 'inactive'])
 }).openapi({
     example: {
         id: 1,
@@ -68,7 +69,8 @@ const subscriptionPlanSchema = z.object({
                 feature_value: null,
                 is_active: true
             }
-        ]
+        ],
+        user_status: "active",
     }
 })
 
@@ -88,8 +90,17 @@ const listPlansRoute = createRoute({
 })
 
 app.openapi(listPlansRoute, async (c) => {
-    const plans = await getActivePlansWithFeatures()
-    return sendSuccess(c, plans, 'Subscription plans retrieved successfully')
+    const plans = await getActivePlansWithFeatures();
+    const userId = c.get('user').id
+
+    const activeUserSubscriptionPlan = await getUserActiveSubscriptionWithPlan(userId)
+
+    const plansWithUserStatus = plans.map(plan => ({
+        ...plan,
+        user_status: activeUserSubscriptionPlan?.plan?.code === plan.code ? 'active' : 'inactive'
+    }))
+
+    return sendSuccess(c, plansWithUserStatus, 'Subscription plans retrieved successfully')
 })
 
 // Status
