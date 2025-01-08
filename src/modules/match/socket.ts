@@ -197,6 +197,31 @@ export const setupMatchSocket = (app: CustomHono) => {
     type SignalType = 'offer' | 'answer';
 
     // Update the event handler
+    socket.on('exchangeData', (data: {
+      data: any;
+      roomId: string;
+      to: number;
+      type: SignalType
+    }) => {
+      console.log("exchangeData:", {
+        roomId: data.roomId, to: data.to, type: data.type
+      });
+
+      // if (socket.data.matchingState !== 'in_call') return;
+
+      const targetSocketId = connectedUsers.get(data.to);
+      if (targetSocketId) {
+        io.to(targetSocketId).emit('exchangeData', {
+          data: data.data,
+          userId: userId,
+          roomId: data.roomId,
+          from: userId,
+          type: data.type    // Forward the signal type
+        });
+      }
+    });
+    
+    // Update the event handler
     socket.on('webrtcSignal', (data: {
       signal: any;
       roomId: string;
