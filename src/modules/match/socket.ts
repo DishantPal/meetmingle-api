@@ -9,6 +9,8 @@ interface MatchFilters {
   gender?: string;
   preferred_language?: string;
   country?: string;
+  state?: string;
+  age?: string;
   age_min?: number;
   age_max?: number;
   interests?: string[];

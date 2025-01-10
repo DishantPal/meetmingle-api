@@ -4,13 +4,15 @@ import { Selectable } from "kysely"
 import { MatchingQueue, MatchHistory } from "@/database/db.js"
 
 interface MatchFilters {
- call_type: 'video' | 'audio';
- gender?: string;
- preferred_language?: string;
- country?: string;
- age_min?: number;
- age_max?: number;
- interests?: string[];
+  call_type: 'video' | 'audio';
+  gender?: string;
+  preferred_language?: string;
+  country?: string;
+  state?: string;
+  age?: string;
+  age_min?: number;
+  age_max?: number;
+  interests?: string[];
 }
 
 // Add user to matching queue
@@ -31,6 +33,13 @@ export const addToMatchingQueue = async (
      throw new Error('User already in queue')
    }
 
+   if (filters.age) {
+     const [ageMin, ageMax] = filters.age.split('-')
+     filters.age_min = parseInt(ageMin || '0')
+     filters.age_max = parseInt(ageMax || '100')  
+   }
+
+
    // Add to queue
    await db
      .insertInto('matching_queue')
@@ -40,6 +49,7 @@ export const addToMatchingQueue = async (
        gender: filters.gender,
        preferred_language: filters.preferred_language,
        country: filters.country,
+       state: filters.state,
        age_min: filters.age_min,
        age_max: filters.age_max,
        interests: filters.interests ? JSON.stringify(filters.interests) : null,
@@ -183,6 +193,7 @@ const areFiltersCompatible = async (
      gender: queueEntry.gender,
      preferred_language: queueEntry.preferred_language,
      country: queueEntry.country,
+     state: queueEntry.state,
      interests: queueEntry.interests ? JSON.parse(queueEntry.interests as string) : undefined
    }
 
@@ -190,6 +201,7 @@ const areFiltersCompatible = async (
    if (!checkFilter(filters1.gender, filters2.gender)) return false
    if (!checkFilter(filters1.preferred_language, filters2.preferred_language)) return false
    if (!checkFilter(filters1.country, filters2.country)) return false
+   if (!checkFilter(filters1.state, filters2.state)) return false
 
    // Check interests if both specified
    if (filters1.interests?.length && filters2.interests?.length) {

@@ -100,6 +100,7 @@ export interface MatchingQueue {
   id: Generated<number>;
   interests: Json | null;
   preferred_language: string | null;
+  state: string | null;
   status: Generated<string>;
   updated_at: Generated<Date>;
   user_id: number;
