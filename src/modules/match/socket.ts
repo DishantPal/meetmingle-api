@@ -19,6 +19,7 @@ interface MatchFilters {
 interface SocketUser {
   id: number;
   email: string;
+  user: any;
 }
 
 // type MatchingState = 'idle' | 'finding' | 'in_call';
@@ -54,6 +55,8 @@ export const setupMatchSocket = (app: CustomHono) => {
       if (!token) return next(new Error('Token required'));
 
       const decoded = await decodeSocketAuthToken(token) as SocketUser;
+      if(!decoded?.user) return next(new Error('Invalid token'));
+
       socket.data.user = decoded?.user;
       // socket.data.matchingState = 'idle';
       next();
