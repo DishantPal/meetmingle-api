@@ -135,11 +135,11 @@ const updateUserProfileSchema = z.object({
         .openapi({ example: '1990-01-01' }),
     gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional()
         .openapi({ example: 'male' }),
-    country: z.string().length(2, { message: "Country code must be a 2-letter ISO country code" }).optional()
+    country: z.string().optional()
         .openapi({ example: 'US' }),
-    state: z.string().length(2, { message: "State code must be a 2-letter ISO state/region code" }).optional()
+    state: z.string().optional()
         .openapi({ example: 'CA' }),
-    preferred_language: z.string().length(2, { message: "Language code must be a 2-letter ISO language code" }).optional()
+    preferred_language: z.string().optional()
         .openapi({ example: 'en' }),
     relationship_status: z.string().optional()
         .openapi({ example: 'single' }),
