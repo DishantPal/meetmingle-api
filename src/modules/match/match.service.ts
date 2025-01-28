@@ -227,56 +227,143 @@ export const checkIfUserCanUseFilter = async (userId: number, userFilters: Match
   return true
 }
 
-// Find a match for user
 export const findMatch = async (
- userId: number, 
- userFilters: MatchFilters
-): Promise<Selectable<MatchingQueue> | undefined> => {
- try {
-
-    if(!await checkIfUserCanUseFilter(userId, userFilters)) {
-      await removeFromQueue(userId)
-      throw new Error('User does not have enough balance to use this filter');
-    }
-
-   // Get potential matches
-   const potentialMatches = await db
-     .selectFrom('matching_queue')
-     .selectAll()
-     .where('user_id', '!=', userId)
-     .where('status', '=', 'waiting')
-     .where('call_type', '=', userFilters.call_type) // Strict match on call_type
-     .orderBy('entry_time', 'asc')
-     .execute()
-
-   // Find first compatible match
-   for (const match of potentialMatches) {
-     // Skip if blocked
-     const isBlocked = await checkUserBlocks(userId, match.user_id)
-     if (isBlocked) continue
-
-     // Check if filters match
-     if (!await areFiltersCompatible(userFilters, match)) continue
+  userId: number, 
+  userFilters: MatchFilters
+ ): Promise<Selectable<MatchingQueue> | undefined> => {
+  try {
+     if(!await checkIfUserCanUseFilter(userId, userFilters)) {
+       await removeFromQueue(userId)
+       throw new Error('User does not have enough balance to use this filter');
+     }
+ 
+     // Start building the base query
+     let query = db
+       .selectFrom('matching_queue')
+       .selectAll()
+       .where('user_id', '!=', userId)
+       .where('status', '=', 'waiting')
+       .where('call_type', '=', userFilters.call_type)
+       // Exclude blocked users using subquery
+       .where(
+         'user_id', 
+         'not in', 
+         db.selectFrom('user_blocks')
+           .select('blocked_id')
+           .where('blocker_id', '=', userId)
+       )
+       .where(
+         'user_id',
+         'not in',
+         db.selectFrom('user_blocks')
+           .select('blocker_id')
+           .where('blocked_id', '=', userId)
+       );
+ 
+     // Add filters dynamically
+     if (userFilters.gender) {
+       query = query.where('gender', '=', userFilters.gender);
+     }
+ 
+     if (userFilters.preferred_language) {
+       query = query.where('preferred_language', '=', userFilters.preferred_language);
+     }
+ 
+     if (userFilters.country) {
+       query = query.where('country', '=', userFilters.country);
+     }
+ 
+     if (userFilters.state) {
+       query = query.where('state', '=', userFilters.state);
+     }
+ 
+     // Handle age range
+     if (userFilters.age_min !== undefined) {
+       // User's max age should be greater than or equal to the filter's min age
+       query = query.where('age_max', '>=', userFilters.age_min);
+     }
+ 
+     if (userFilters.age_max !== undefined) {
+       // User's min age should be less than or equal to the filter's max age
+       query = query.where('age_min', '<=', userFilters.age_max);
+     }
+ 
+     // Add sorting by wait time (entry_time)
+     query = query.orderBy('entry_time', 'asc');
+ 
+     // Execute the query
+     const match = await query.executeTakeFirst();
      
-     // Found match - update both users' status
+     if (!match) return undefined;
+ 
+     // Update both users' status
      await db
        .updateTable('matching_queue')
        .set({ status: 'matched' })
        .where('user_id', 'in', [userId, match.user_id])
        .execute()
-
-      await chargeFilterUsage(userId, userFilters)
-      await chargeFilterUsage(match.user_id, userFilters)    
-
-      return match
-   }
-
-   return undefined
- } catch (error) {
-   console.error('Error finding match:', error);
-   throw error;
+ 
+     await chargeFilterUsage(userId, userFilters);
+     await chargeFilterUsage(match.user_id, userFilters);    
+ 
+     return match;
+ 
+  } catch (error) {
+    console.error('Error finding match:', error);
+    throw error;
+  }
  }
-}
+
+// // Find a match for user
+// export const findMatch = async (
+//  userId: number, 
+//  userFilters: MatchFilters
+// ): Promise<Selectable<MatchingQueue> | undefined> => {
+//  try {
+
+//     if(!await checkIfUserCanUseFilter(userId, userFilters)) {
+//       await removeFromQueue(userId)
+//       throw new Error('User does not have enough balance to use this filter');
+//     }
+
+//    // Get potential matches
+//    const potentialMatches = await db
+//      .selectFrom('matching_queue')
+//      .selectAll()
+//      .where('user_id', '!=', userId)
+//      .where('status', '=', 'waiting')
+//      .where('call_type', '=', userFilters.call_type) // Strict match on call_type
+//      .orderBy('entry_time', 'asc')
+//      .execute()
+
+//    // Find first compatible match
+//    for (const match of potentialMatches) {
+//      // Skip if blocked
+//      const isBlocked = await checkUserBlocks(userId, match.user_id)
+//      if (isBlocked) continue
+
+//      // Check if filters match
+//      if (!await areFiltersCompatible(userFilters, match)) continue
+     
+//      // Found match - update both users' status
+//      await db
+//        .updateTable('matching_queue')
+//        .set({ status: 'matched' })
+//        .where('user_id', 'in', [userId, match.user_id])
+//        .execute()
+
+//       await chargeFilterUsage(userId, userFilters)
+//       await chargeFilterUsage(match.user_id, userFilters)    
+
+//       return match
+//    }
+
+//    return undefined
+//  } catch (error) {
+//    console.error('Error finding match:', error);
+//    throw error;
+//  }
+// }
 
 // Start new match
 export const startMatch = async (
@@ -309,71 +396,71 @@ export const startMatch = async (
  }
 }
 
-// Helper: Check user blocks
-const checkUserBlocks = async (
- user1Id: number, 
- user2Id: number
-): Promise<boolean> => {
- try {
-   const block = await db
-     .selectFrom('user_blocks')
-     .selectAll()
-     .where(eb => eb.or([
-       eb.and([
-         eb('blocker_id', '=', user1Id),
-         eb('blocked_id', '=', user2Id)
-       ]),
-       eb.and([
-         eb('blocker_id', '=', user2Id),
-         eb('blocked_id', '=', user1Id)
-       ])
-     ]))
-     .executeTakeFirst()
+// // Helper: Check user blocks
+// const checkUserBlocks = async (
+//  user1Id: number, 
+//  user2Id: number
+// ): Promise<boolean> => {
+//  try {
+//    const block = await db
+//      .selectFrom('user_blocks')
+//      .selectAll()
+//      .where(eb => eb.or([
+//        eb.and([
+//          eb('blocker_id', '=', user1Id),
+//          eb('blocked_id', '=', user2Id)
+//        ]),
+//        eb.and([
+//          eb('blocker_id', '=', user2Id),
+//          eb('blocked_id', '=', user1Id)
+//        ])
+//      ]))
+//      .executeTakeFirst()
 
-   return !!block
- } catch (error) {
-   console.error('Error checking blocks:', error);
-   throw error;
- }
-}
+//    return !!block
+//  } catch (error) {
+//    console.error('Error checking blocks:', error);
+//    throw error;
+//  }
+// }
 
-// Helper: Check filter compatibility
-const areFiltersCompatible = async (
- filters1: MatchFilters,
- queueEntry: Selectable<MatchingQueue>
-): Promise<boolean> => {
- try {
-   const checkFilter = <T>(filter1: T | undefined, filter2: T | undefined): boolean => {
-     if (filter1 && filter2 && filter1 !== filter2) return false
-     return true
-   }
+// // Helper: Check filter compatibility
+// const areFiltersCompatible = async (
+//  filters1: MatchFilters,
+//  queueEntry: Selectable<MatchingQueue>
+// ): Promise<boolean> => {
+//  try {
+//    const checkFilter = <T>(filter1: T | undefined, filter2: T | undefined): boolean => {
+//      if (filter1 && filter2 && filter1 !== filter2) return false
+//      return true
+//    }
 
-   // Parse queue entry filters
-   const filters2 = {
-     gender: queueEntry.gender,
-     preferred_language: queueEntry.preferred_language,
-     country: queueEntry.country,
-     state: queueEntry.state,
-     interests: queueEntry.interests ? JSON.parse(queueEntry.interests as string) : undefined
-   }
+//    // Parse queue entry filters
+//    const filters2 = {
+//      gender: queueEntry.gender,
+//      preferred_language: queueEntry.preferred_language,
+//      country: queueEntry.country,
+//      state: queueEntry.state,
+//      interests: queueEntry.interests ? JSON.parse(queueEntry.interests as string) : undefined
+//    }
 
-   // Check basic filters
-   if (!checkFilter(filters1.gender, filters2.gender)) return false
-   if (!checkFilter(filters1.preferred_language, filters2.preferred_language)) return false
-   if (!checkFilter(filters1.country, filters2.country)) return false
-   if (!checkFilter(filters1.state, filters2.state)) return false
+//    // Check basic filters
+//    if (!checkFilter(filters1.gender, filters2.gender)) return false
+//    if (!checkFilter(filters1.preferred_language, filters2.preferred_language)) return false
+//    if (!checkFilter(filters1.country, filters2.country)) return false
+//    if (!checkFilter(filters1.state, filters2.state)) return false
 
-   // Check interests if both specified
-   if (filters1.interests?.length && filters2.interests?.length) {
-     const commonInterests = filters1.interests.filter(
-       interest => filters2.interests.includes(interest)
-     )
-     if (commonInterests.length === 0) return false
-   }
+//    // Check interests if both specified
+//    if (filters1.interests?.length && filters2.interests?.length) {
+//      const commonInterests = filters1.interests.filter(
+//        interest => filters2.interests.includes(interest)
+//      )
+//      if (commonInterests.length === 0) return false
+//    }
 
-   return true
- } catch (error) {
-   console.error('Error checking filter compatibility:', error);
-   throw error;
- }
-}
+//    return true
+//  } catch (error) {
+//    console.error('Error checking filter compatibility:', error);
+//    throw error;
+//  }
+// }
