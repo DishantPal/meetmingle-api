@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test Client</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash/4.17.21/lodash.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Auth Section -->
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 class="text-xl font-bold mb-4">Authentication</h2>
+            <div class="flex gap-4 items-end">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="emailInput" value="mark@mail.com" 
+                           class="w-full p-2 border rounded">
+                </div>
+                <button onclick="authenticate()" 
+                        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Connect
+                </button>
+            </div>
+        </div>
+
+        <!-- Connection Status -->
+        <div id="status" class="hidden bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6">
+            Connected as: <span id="userEmail" class="font-semibold"></span>
+        </div>
+
+        <!-- Events Section -->
+        <div id="eventsSection" class="hidden">
+            <div class="grid grid-cols-2 gap-6">
+                <!-- Send Events Panel -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-bold mb-4">Send Events</h2>
+                    
+                    <select id="eventSelect" class="w-full p-2 border rounded mb-4">
+                        <option value="findMatch">findMatch</option>
+                        <option value="exchangeData">exchangeData</option>
+                        <option value="webrtcSignal">webrtcSignal</option>
+                        <option value="exchangeIceCandidate">exchangeIceCandidate</option>
+                        <option value="endSession">endSession</option>
+                    </select>
+
+                    <textarea id="payloadInput" placeholder="Enter JSON payload"
+                              class="w-full p-2 border rounded mb-4 h-40 font-mono"></textarea>
+
+                    <button onclick="sendEvent()" 
+                            class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                        Send Event
+                    </button>
+
+                    <div class="mt-4">
+                        <h3 class="font-bold mb-2">Sent Messages:</h3>
+                        <div id="sentMessages" class="bg-gray-100 p-4 rounded h-60 overflow-y-auto font-mono text-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Receive Events Panel -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-bold mb-4">Server Responses</h2>
+                    <div id="responses" class="bg-gray-100 p-4 rounded h-[calc(100%-2rem)] overflow-y-auto font-mono text-sm">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        const defaultPayloads = {
+            findMatch: {
+                call_type: "video",
+                gender: "male",
+                preferred_language: "english",
+                country: "US",
+                interests: ["gaming", "music"]
+            },
+            exchangeData: {
+                data: {},
+                roomId: "match_1_2",
+                to: 2,
+                type: "offer"
+            },
+            webrtcSignal: {
+                signal: {},
+                roomId: "match_1_2",
+                to: 2,
+                type: "offer"
+            },
+            exchangeIceCandidate: {
+                signal: {},
+                roomId: "match_1_2",
+                to: 2,
+                type: "offer"
+            },
+            endSession: {
+                roomId: "match_1_2"
+            }
+        };
+
+        async function authenticate() {
+            const email = document.getElementById('emailInput').value;
+            
+            try {
+                const response = await fetch('http://localhost:3000/auth/signin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        provider_id: 'google-oauth-id123',
+                        provider_type: 'google'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.data.token) {
+                    connectSocket(data.data.token, email);
+                } else {
+                    logResponse('Authentication failed: ' + data.message, true);
+                }
+            } catch (error) {
+                logResponse('Authentication error: ' + error.message, true);
+            }
+        }
+
+        function connectSocket(token, email) {
+            // Initialize socket connection
+            socket = io('http://localhost:3000', {
+                path: '/match',
+                auth: { token },
+                transports: ['websocket', 'polling']
+            });
+
+            // Connection handlers
+            socket.on('connect', () => {
+                document.getElementById('status').classList.remove('hidden');
+                document.getElementById('userEmail').textContent = email;
+                document.getElementById('eventsSection').classList.remove('hidden');
+                logResponse('Connected to server');
+            });
+
+            socket.on('connect_error', (error) => {
+                logResponse(`Connection error: ${error.message}`, true);
+            });
+
+            // Event handlers
+            socket.on('error', (data) => logResponse('Error: ' + JSON.stringify(data), true));
+            socket.on('startSignaling', (data) => logResponse('startSignaling: ' + JSON.stringify(data)));
+            socket.on('exchangeData', (data) => logResponse('exchangeData: ' + JSON.stringify(data)));
+            socket.on('webrtcSignal', (data) => logResponse('webrtcSignal: ' + JSON.stringify(data)));
+            socket.on('exchangeIceCandidate', (data) => logResponse('exchangeIceCandidate: ' + JSON.stringify(data)));
+            socket.on('endSession', (data) => logResponse('endSession: ' + JSON.stringify(data)));
+            socket.on('noMatchesAvailable', () => logResponse('noMatchesAvailable event received'));
+            socket.on('xyz', (data) => logResponse('xyz: ' + JSON.stringify(data)));
+            
+            // Catch-all listener for any other events
+            socket.onAny((eventName, ...args) => {
+                if (!['error', 'startSignaling', 'exchangeData', 'webrtcSignal', 
+                      'exchangeIceCandidate', 'endSession', 'noMatchesAvailable', 'xyz'].includes(eventName)) {
+                    logResponse(`Received unknown event '${eventName}': ${JSON.stringify(args)}`);
+                }
+            });
+        }
+
+        // Update textarea with default payload when event is selected
+        document.getElementById('eventSelect').addEventListener('change', function(e) {
+            const payload = defaultPayloads[e.target.value];
+            document.getElementById('payloadInput').value = JSON.stringify(payload, null, 2);
+        });
+
+        function sendEvent() {
+            const event = document.getElementById('eventSelect').value;
+            let payload;
+            
+            try {
+                payload = JSON.parse(document.getElementById('payloadInput').value);
+            } catch (e) {
+                logResponse('Invalid JSON payload', true);
+                return;
+            }
+
+            socket.emit(event, payload);
+            logSentMessage(`${event}: ${JSON.stringify(payload)}`);
+        }
+
+        function logResponse(message, isError = false) {
+            const responsesDiv = document.getElementById('responses');
+            const entry = document.createElement('div');
+            entry.className = `mb-2 ${isError ? 'text-red-500' : 'text-gray-800'}`;
+            entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            responsesDiv.insertBefore(entry, responsesDiv.firstChild);
+        }
+
+        function logSentMessage(message) {
+            const messagesDiv = document.getElementById('sentMessages');
+            const entry = document.createElement('div');
+            entry.className = 'mb-2 text-gray-800';
+            entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+            messagesDiv.insertBefore(entry, messagesDiv.firstChild);
+        }
+
+        // Set initial default payload
+        document.getElementById('payloadInput').value = JSON.stringify(defaultPayloads.findMatch, null, 2);
+    </script>
+</body>
+</html>

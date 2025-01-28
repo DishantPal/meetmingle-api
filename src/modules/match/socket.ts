@@ -95,7 +95,15 @@ export const setupMatchSocket = (app: CustomHono) => {
         socket.data.currentFilters = filters;
 
         // Add to matching queue
-        await addToMatchingQueue(userId, filters);
+        try {
+          await addToMatchingQueue(userId, filters);          
+        } catch (error: any) {
+          if(error.message == 'User already in queue') {
+            socket.emit('error', { message: 'User already in queue' });
+          }
+
+          console.log('Socket Error', error);
+        }
 
         // // Start match finding timeout
         // const timeout = setTimeout(async () => {
@@ -109,12 +117,23 @@ export const setupMatchSocket = (app: CustomHono) => {
         // socket.data.matchTimeout = timeout;
 
         // Try to find a match
-        const match = await findMatch(userId, filters);
+
+        let match;
+        try {
+          match = await findMatch(userId, filters);        
+        } catch (error: any) {
+          if(error.message == 'User does not have enough balance to use this filter') {
+            socket.emit('error', { message: 'User does not have enough balance to use this filter' });
+          }
+
+          console.log('Socket Error', error);
+        }
+
         console.log("🚀 ~ socket.on ~ match:", match)
+
         if (match) {
           
           const matchedSocketId = connectedUsers.get(match.user_id);
-          
 
           console.log('before not matchedSocketId')
           console.log("🚀 ~ socket.on ~ matchedSocketId:", matchedSocketId)

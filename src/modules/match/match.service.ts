@@ -2,6 +2,8 @@
 import { db } from "@/database/database.js"
 import { Selectable } from "kysely"
 import { MatchingQueue, MatchHistory } from "@/database/db.js"
+import { generateId } from "@/utils/generateId.js";
+import CRC32 from "crc-32"
 
 interface MatchFilters {
   call_type: 'video' | 'audio';
@@ -76,12 +78,167 @@ export const removeFromQueue = async (userId: number): Promise<void> => {
  }
 }
 
+export const createMatchCoinTransactionForFilter = async (
+  userId: number, 
+  filter: 'age' | 'gender' | 'language' | 'state' | 'country'
+): Promise<void> => {
+
+  const filterPriceFromDb = await db
+    .selectFrom('app_settings')
+    .select('value')
+    .where('group', '=', 'filter')
+    .where('key', '=', `${filter}_filter_price`)
+    .executeTakeFirst()
+
+  const filterPrice = filterPriceFromDb ? parseInt(filterPriceFromDb.value) : 0;
+  
+  if (filterPrice <= 0) {
+    return
+  }
+
+  await db.transaction().execute(async (trx) => {
+    // Generate transaction ID using utility
+    const transactionId = generateId()
+    
+    // Get current balance
+    const lastTransaction = await trx
+      .selectFrom("user_coin_transactions")
+      .select("running_balance")
+      .where("user_id", "=", userId)
+      .orderBy("created_at", "desc")
+      .limit(1)
+      .executeTakeFirst()
+
+    const currentBalance = lastTransaction?.running_balance || 0
+    const newBalance = currentBalance - filterPrice
+
+    // Generate checksum using CRC32
+    const timestamp = new Date().toISOString()
+    const checksumData = `${userId}${transactionId}${filterPrice}${timestamp}`
+    const checksum = CRC32.str(checksumData).toString(16)
+
+    // Create transaction
+    await trx
+      .insertInto("user_coin_transactions")
+      .values({
+        transaction_id: transactionId,
+        user_id: userId,
+        transaction_type: 'debit',
+        action_type: 'match',
+        amount: filterPrice,
+        running_balance: newBalance,
+        description: `${filter} used to match with a user`,
+        reference_id: null,
+        checksum: checksum
+      })
+      .execute()
+  })
+}
+
+export const chargeFilterUsage = async (
+  userId: number, 
+  userFilters: MatchFilters
+) => {
+
+  if (userFilters.gender) {
+    await createMatchCoinTransactionForFilter(userId, 'gender')
+  }
+
+  if (userFilters.preferred_language) {
+    await createMatchCoinTransactionForFilter(userId, 'language')
+  }
+
+  if (userFilters.country) {
+    await createMatchCoinTransactionForFilter(userId, 'country')
+  }
+
+  if (userFilters.state) {
+    await createMatchCoinTransactionForFilter(userId, 'state')
+  }
+
+  if (userFilters.age) {
+    await createMatchCoinTransactionForFilter(userId, 'age')
+  }
+}
+
+export const getUserCoinBalance = async (userId: number): Promise<number> => {
+  const lastTransaction = await db
+    .selectFrom("user_coin_transactions")
+    .select("running_balance")
+    .where("user_id", "=", userId)
+    .orderBy("created_at", "desc")
+    .limit(1)
+    .executeTakeFirst()
+
+  return lastTransaction?.running_balance || 0
+}
+
+export const checkIfUserCanUseFilter = async (userId: number, userFilters: MatchFilters): Promise<boolean> => {
+
+  const userBalance = await getUserCoinBalance(userId)
+  
+  const filterPriceCheck = async (filter: 'age' | 'gender' | 'language' | 'state' | 'country') => {
+    const filterPriceFromDb = await db
+        .selectFrom('app_settings')
+        .select('value')
+        .where('group', '=', 'filter')
+        .where('key', '=', `${filter}_filter_price`)
+        .executeTakeFirst()
+  
+      const filterPrice = filterPriceFromDb ? parseInt(filterPriceFromDb.value) : 0;
+  
+      if (userBalance < filterPrice) {
+        return false
+      } else {
+        return true
+      }
+  }
+
+  if (userFilters.gender) {
+    if (!await filterPriceCheck('gender')) {
+      return false
+    }
+  }
+
+  if (userFilters.preferred_language) {
+    if (!await filterPriceCheck('language')) {
+      return false
+    }
+  }
+
+  if (userFilters.country) {
+    if (!await filterPriceCheck('country')) {
+      return false
+    }
+  }
+
+  if (userFilters.state) {
+    if (!await filterPriceCheck('state')) {
+      return false
+    }
+  }
+
+  if (userFilters.age) {
+    if (!await filterPriceCheck('age')) {
+      return false
+    }
+  }
+
+  return true
+}
+
 // Find a match for user
 export const findMatch = async (
  userId: number, 
  userFilters: MatchFilters
 ): Promise<Selectable<MatchingQueue> | undefined> => {
  try {
+
+    if(!await checkIfUserCanUseFilter(userId, userFilters)) {
+      await removeFromQueue(userId)
+      throw new Error('User does not have enough balance to use this filter');
+    }
+
    // Get potential matches
    const potentialMatches = await db
      .selectFrom('matching_queue')
@@ -108,7 +265,10 @@ export const findMatch = async (
        .where('user_id', 'in', [userId, match.user_id])
        .execute()
 
-     return match
+      await chargeFilterUsage(userId, userFilters)
+      await chargeFilterUsage(match.user_id, userFilters)    
+
+      return match
    }
 
    return undefined

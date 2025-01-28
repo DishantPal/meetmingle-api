@@ -120,10 +120,10 @@ app.openapi(listRewardsRoute, async (c) => {
   // Combine the data
   const transformedRewards = rewards.map(reward => ({
     ...reward,
-    user_status: userRewardsMap.get(reward.code)?.status || null,
-    claimed_at: userRewardsMap.get(reward.code)?.created_at ?
+    user_status: reward.reward_type === 'multiple' ? null : (userRewardsMap.get(reward.code)?.status || null),
+    claimed_at: reward.reward_type === 'multiple' ? null : (userRewardsMap.get(reward.code)?.created_at ?
       new Date(userRewardsMap.get(reward.code)!.created_at).toISOString() :
-      null
+      null)
   }))
 
   return sendSuccess(c, transformedRewards, 'Rewards retrieved successfully')

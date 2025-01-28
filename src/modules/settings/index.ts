@@ -209,9 +209,9 @@ app.openapi(getSettingsMergedReasonsRoute, async (c) => {
   const reportReasons = await getActiveReportReasons()
 
   const genderImages = {
-    'female':  'https://img.enacton.com/ShareX/2025/01/femenine.png',
-    'male': 'https://img.enacton.com/ShareX/2025/01/male-gender.png',
-    'others': 'https://img.enacton.com/ShareX/2025/01/third-gender.png'
+    'female':  'https://img.enacton.com/ShareX/2025/01/female.png',
+    'male': 'https://img.enacton.com/ShareX/2025/01/male.png',
+    'others': 'https://img.enacton.com/ShareX/2025/01/others.png'
   } as const;
 
   // @ts-ignore
