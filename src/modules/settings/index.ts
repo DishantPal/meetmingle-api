@@ -208,7 +208,14 @@ app.openapi(getSettingsMergedReasonsRoute, async (c) => {
   const languages = await getActiveLanguages()
   const reportReasons = await getActiveReportReasons()
 
-  const profileGenderObj = groupedSettings?.profile_options?.gender.map((gender: string) => ({image: 'https://meetmingle-api.enactweb.com/images/users/user_4/profile-image.png',name: convertToTitleCase(gender), code: convertToSnakeCase(gender)}) )
+  const genderImages = {
+    'female':  'https://img.enacton.com/ShareX/2025/01/femenine.png',
+    'male': 'https://img.enacton.com/ShareX/2025/01/male-gender.png',
+    'others': 'https://img.enacton.com/ShareX/2025/01/third-gender.png'
+  } as const;
+
+  // @ts-ignore
+  const profileGenderObj = groupedSettings?.profile_options?.gender.map((gender: string) => ({image: genderImages[gender], name: convertToTitleCase(gender), code: convertToSnakeCase(gender)}) )
   const relationShipObj = groupedSettings?.profile_options?.relation_ship_status.map((rss: string) => ({name: rss, code: convertToSnakeCase(rss)}) )
   const interestsObj = groupedSettings?.profile_options?.interests.map((int: string) => ({name: int, code: convertToSnakeCase(int)}) )
   const lookingForObj = groupedSettings?.profile_options?.looking_for.map((lf: string) => ({name: lf, code: convertToSnakeCase(lf)}) )
