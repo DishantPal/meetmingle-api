@@ -215,7 +215,11 @@
             socket = io(window.apiConfig.domains.current.socket, {
                 path: '/match',
                 auth: { token },
-                transports: ['websocket', 'polling']
+                transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                forceNew: true
             });
 
             // Connection handlers

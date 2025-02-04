@@ -40,12 +40,17 @@ const connectedUsers = new Map<number, string>();
 
 export const setupMatchSocket = (app: CustomHono) => {
   const io = new Server({
+    path: "/match",
     cors: {
       origin: "*",
-      methods: ["GET", "POST"]
+      methods: ["GET", "POST"],
+      allowedHeaders: ["Authorization", "Content-Type"],
+      credentials: true
     },
-    path: "/match",
-    transports: ['websocket', 'polling'], // Allow both WebSocket and polling
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    transports: ['websocket', 'polling'],
+    allowEIO3: true // Enable Engine.IO v3 compatibility
   });
 
   // JWT Authentication middleware
