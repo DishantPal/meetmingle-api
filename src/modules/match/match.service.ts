@@ -127,7 +127,7 @@ export const createMatchCoinTransactionForFilter = async (
         action_type: 'match',
         amount: filterPrice,
         running_balance: newBalance,
-        description: `${filter} used to match with a user`,
+        description: `${filter} filter used to match with a user`,
         reference_id: null,
         checksum: checksum
       })
