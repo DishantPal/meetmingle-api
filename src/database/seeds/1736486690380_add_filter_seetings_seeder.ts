@@ -2,7 +2,6 @@ import type { Kysely } from 'kysely'
 
 export async function seed(db: Kysely<any>): Promise<void> {
   const now = new Date()
-  console.log("🚀 ~ seed ~ now:", now)
   
   const settings = [
     // Filter Settings

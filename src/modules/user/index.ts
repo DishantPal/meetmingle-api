@@ -107,10 +107,8 @@ app.openapi(getProfileByIdRoute, async (c) => {
     )
   }
 
-  console.log("🚀 ~ app.openapi ~ currentUser:", currentUser)
   if (currentUser) {
     const isBlocked = await getUserBlockStatus(currentUser, user_id)
-    console.log("🚀 ~ app.openapi ~ isBlocked:", isBlocked)
     if (isBlocked) {
       throw new AppError(
         StatusCodes.FORBIDDEN,

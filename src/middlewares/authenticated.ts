@@ -57,7 +57,6 @@ export const isAuthenticated = async (c: Context<Env>, next: Next) => {
     }
 
     const user = await getUserWithProfileByUserId(Number(decoded.user.id))
-    console.log("🚀 ~ isAuthenticated ~ user:", user)
     
     // To Test
     // const user = await getUserWithProfileByUserId(Number(1))

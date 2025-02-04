@@ -243,10 +243,6 @@ export const createPurchaseTransaction = async (
     const checksumData = `${userId}${transactionId}${packageDetails.coins}${timestamp}`
     const checksum = CRC32.str(checksumData).toString(16)
 
-    // Log purchase verification token (temporary)
-    console.log('Purchase Verification Token:', purchaseToken)
-    console.log('Platform:', platform)
-
     // Create transaction
     await trx
       .insertInto("user_coin_transactions")
