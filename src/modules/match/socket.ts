@@ -22,21 +22,14 @@ interface SocketUser {
   user: any;
 }
 
-// type MatchingState = 'idle' | 'finding' | 'in_call';
-
 interface AuthenticatedSocket extends Socket {
   data: {
     user: SocketUser;
-    // matchTimeout?: NodeJS.Timeout;
-    // matchingState: MatchingState;
-    currentFilters?: MatchFilters;
   };
 }
 
 // Store connected users and their socket IDs
 const connectedUsers = new Map<number, string>();
-
-// const MATCH_TIMEOUT = 30000; // 30 seconds to find match
 
 export const setupMatchSocket = (app: CustomHono) => {
   const io = new Server({
@@ -75,22 +68,12 @@ export const setupMatchSocket = (app: CustomHono) => {
     // Start finding match
     socket.on('findMatch', async (filters: MatchFilters) => {
       console.log("findMatch called:", { filters, userId });
-      console.log("🚀 ~ socket.on ~ socket.data:", socket.data);
 
       try {
-        // Validate state and call_type
-        // if (socket.data.matchingState !== 'idle') {
-          // socket.emit('error', { message: 'Already in matching or call' });
-          // return;
-        // }
-
         if (!filters.call_type || !['video', 'audio'].includes(filters.call_type)) {
           socket.emit('error', { message: 'Invalid call type' });
           return;
         }
-
-        // socket.data.matchingState = 'finding';
-        socket.data.currentFilters = filters;
 
         // Add to matching queue
         try {
@@ -103,19 +86,7 @@ export const setupMatchSocket = (app: CustomHono) => {
           console.log('Socket Error', error);
         }
 
-        // // Start match finding timeout
-        // const timeout = setTimeout(async () => {
-        //   if (socket.data.matchingState === 'finding') {
-        //     await removeFromQueue(userId);
-        //     socket.data.matchingState = 'idle';
-        //     socket.emit('noMatchesAvailable');
-        //   }
-        // }, MATCH_TIMEOUT);
-
-        // socket.data.matchTimeout = timeout;
-
         // Try to find a match
-
         let match;
         try {
           match = await findMatch(userId, filters);        
@@ -125,6 +96,7 @@ export const setupMatchSocket = (app: CustomHono) => {
           }
 
           console.log('Socket Error', error);
+          return;
         }
 
         console.log("🚀 ~ socket.on ~ match:", match)
@@ -133,19 +105,14 @@ export const setupMatchSocket = (app: CustomHono) => {
           
           const matchedSocketId = connectedUsers.get(match.user_id);
 
-          console.log('before not matchedSocketId')
           console.log("🚀 ~ socket.on ~ matchedSocketId:", matchedSocketId)
           if (!matchedSocketId) {
-            console.log('after not matchedSocketId')
             socket.emit('error', { message: 'Matched user not available' });
             return;
           }
 
           socket.emit('xyz', {test: 123});
           io.to(matchedSocketId).emit('xyz', {test: 456})
-
-          // Clear match finding timeout
-          // clearTimeout(socket.data.matchTimeout);
 
           // Create room with sorted user IDs for consistency
           const [smallerId, largerId] = [userId, match.user_id]
@@ -156,10 +123,6 @@ export const setupMatchSocket = (app: CustomHono) => {
           // Join both users to room
           socket.join(roomId);
           io.to(matchedSocketId).socketsJoin(roomId);
-
-          // Update states
-          // socket.data.matchingState = 'in_call';
-          // io.to(matchedSocketId).emit('matchingState', 'in_call');
 
           console.log("startSignaling calling current user : ", {
             userId, signalData: {
@@ -180,7 +143,6 @@ export const setupMatchSocket = (app: CustomHono) => {
             canStartSignaling: [userId, match.user_id].map(Number).sort((a, b) => a - b)[0] === userId
           });
 
-          console.log(cu);
 
           console.log("startSignaling calling matched user : ", {
             userId: match.user_id, signalData: {
@@ -201,17 +163,13 @@ export const setupMatchSocket = (app: CustomHono) => {
             canStartSignaling: [userId, match.user_id].map(Number).sort((a, b) => a - b)[0] === match.user_id
           });
 
-          console.log(mu);
-
-          // io.to(roomId).emit('startSignaling', signalInitiateData );
-
           // Record match in history
           await startMatch(userId, match.user_id, filters.call_type);
         }
       } catch (error) {
         console.error('Error in findMatch:', error);
-        // socket.data.matchingState = 'idle';
         socket.emit('error', { message: 'Failed to start matching' });
+        return;
       }
     });
 
