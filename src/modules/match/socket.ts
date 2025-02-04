@@ -14,6 +14,7 @@ interface MatchFilters {
   age_min?: number;
   age_max?: number;
   interests?: string[];
+  filters?: object;
 }
 
 interface SocketUser {
@@ -66,13 +67,10 @@ export const setupMatchSocket = (app: CustomHono) => {
     connectedUsers.set(userId, socket.id);
 
     // Start finding match
-    socket.on('findMatch', async (inputFilters: MatchFilters) => {
-      console.log("🚀 ~ socket.on ~ inputFilters:", inputFilters)
-      // remove all the keys that are null in the filters
-      const filters = Object.fromEntries(
-        Object.entries(inputFilters).filter(([key, value]) => value !== null)
-      ) as MatchFilters;
+    socket.on('findMatch', async (filters: MatchFilters) => {
       console.log("findMatch called:", { filters, userId });
+
+      if(filters.filters) filters = { ...filters, ...filters.filters }
 
       try {
         if (!filters.call_type || !['video', 'audio'].includes(filters.call_type)) {
