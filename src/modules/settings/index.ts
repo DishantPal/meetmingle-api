@@ -5,6 +5,7 @@ import { z } from "zod"
 import { getActiveCountries, getActiveLanguages, getActiveReportReasons, getActiveStatesForCountry, getGroupedSettings } from "./settings.service.js"
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js"
 import { convertToSnakeCase, convertToTitleCase } from "@/utils/stringHelpers.js"
+import { config } from "@/config/index.js"
 
 const app = CustomHonoAppFactory()
 export {app as settingRoutes};
@@ -209,9 +210,9 @@ app.openapi(getSettingsMergedReasonsRoute, async (c) => {
   const reportReasons = await getActiveReportReasons()
 
   const genderImages = {
-    'female':  'https://img.enacton.com/ShareX/2025/01/female.png',
-    'male': 'https://img.enacton.com/ShareX/2025/01/male.png',
-    'others': 'https://img.enacton.com/ShareX/2025/01/others.png'
+    'female': `${config.app.img_url}/gender/female.png`,
+    'male': `${config.app.img_url}/gender/male.png`,
+    'others': `${config.app.img_url}/gender/others.png`
   } as const;
 
   // @ts-ignore
