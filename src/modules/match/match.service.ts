@@ -17,53 +17,90 @@ interface MatchFilters {
   interests?: string[];
 }
 
+// Helper function to calculate age from DOB
+const calculateAge = (dob: Date): number => {
+  const today = new Date();
+  const birthDate = new Date(dob);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  
+  return age;
+};
+
 // Add user to matching queue
 export const addToMatchingQueue = async (
- userId: number, 
- filters: MatchFilters
+  userId: number, 
+  filters: MatchFilters
 ): Promise<void> => {
- try {
-   // Check if already in queue
-   const existingEntry = await db
-     .selectFrom('matching_queue')
-     .selectAll()
-     .where('user_id', '=', userId)
-     .where('status', '=', 'waiting')
-     .executeTakeFirst()
+  try {
+    // Check if already in queue
+    const existingEntry = await db
+      .selectFrom('matching_queue')
+      .selectAll()
+      .where('user_id', '=', userId)
+      .where('status', '=', 'waiting')
+      .executeTakeFirst();
 
-   if (existingEntry) {
-     throw new Error('User already in queue')
-   }
+    if (existingEntry) {
+      throw new Error('User already in queue');
+    }
 
-   if (filters.age) {
-     const [ageMin, ageMax] = filters.age.split('-')
-     filters.age_min = parseInt(ageMin || '0')
-     filters.age_max = parseInt(ageMax || '100')  
-   }
+    // Fetch user's profile data
+    const userProfile = await db
+      .selectFrom('user_profiles')
+      .selectAll()
+      .where('user_id', '=', userId)
+      .executeTakeFirst();
 
+    if (!userProfile) {
+      throw new Error('User profile not found');
+    }
 
-   // Add to queue
-   await db
-     .insertInto('matching_queue')
-     .values({
-       user_id: userId,
-       call_type: filters.call_type,
-       gender: filters.gender,
-       preferred_language: filters.preferred_language,
-       country: filters.country,
-       state: filters.state,
-       age_min: filters.age_min,
-       age_max: filters.age_max,
-       interests: filters.interests ? JSON.stringify(filters.interests) : null,
-       status: 'waiting',
-       entry_time: new Date()
-     })
-     .execute()
- } catch (error) {
-   console.error('Error adding to queue:', error);
-   throw error;
- }
-}
+    // Calculate age if DOB exists
+    const age = userProfile.dob ? calculateAge(userProfile.dob) : null;
+
+    // Parse age filter if provided
+    let filter_age_min: number | null = null;
+    let filter_age_max: number | null = null;
+    if (filters.age) {
+      const [ageMin, ageMax] = filters.age.split('-');
+      filter_age_min = parseInt(ageMin || '0');
+      filter_age_max = parseInt(ageMax || '100');
+    }
+
+    // Add to queue
+    await db
+      .insertInto('matching_queue')
+      .values({
+        user_id: userId,
+        call_type: filters.call_type,
+        // User's actual attributes from profile
+        gender: userProfile.gender,
+        preferred_language: userProfile.preferred_language,
+        country: userProfile.country,
+        state: userProfile.state,
+        age: age,
+        interests: userProfile.interests ? JSON.stringify(userProfile.interests) : null,
+        // Filter preferences
+        filter_gender: filters.gender || null,
+        filter_language: filters.preferred_language || null,
+        filter_country: filters.country || null,
+        filter_state: filters.state || null,
+        filter_age_min: filters.age_min || filter_age_min,
+        filter_age_max: filters.age_max || filter_age_max,
+        status: 'waiting',
+        entry_time: new Date()
+      })
+      .execute();
+  } catch (error) {
+    console.error('Error adding to queue:', error);
+    throw error;
+  }
+};
 
 // Remove user from queue
 export const removeFromQueue = async (userId: number): Promise<void> => {
@@ -227,143 +264,135 @@ export const checkIfUserCanUseFilter = async (userId: number, userFilters: Match
   return true
 }
 
+
+// Find match
 export const findMatch = async (
   userId: number, 
   userFilters: MatchFilters
- ): Promise<Selectable<MatchingQueue> | undefined> => {
+): Promise<Selectable<MatchingQueue> | undefined> => {
   try {
-     if(!await checkIfUserCanUseFilter(userId, userFilters)) {
-       await removeFromQueue(userId)
-       throw new Error('User does not have enough balance to use this filter');
-     }
- 
-     // Start building the base query
-     let query = db
-       .selectFrom('matching_queue')
-       .selectAll()
-       .where('user_id', '!=', userId)
-       .where('status', '=', 'waiting')
-       .where('call_type', '=', userFilters.call_type)
-       // Exclude blocked users using subquery
-       .where(
-         'user_id', 
-         'not in', 
-         db.selectFrom('user_blocks')
-           .select('blocked_id')
-           .where('blocker_id', '=', userId)
-       )
-       .where(
-         'user_id',
-         'not in',
-         db.selectFrom('user_blocks')
-           .select('blocker_id')
-           .where('blocked_id', '=', userId)
-       );
- 
-     // Add filters dynamically
-     if (userFilters.gender) {
-       query = query.where('gender', '=', userFilters.gender);
-     }
- 
-     if (userFilters.preferred_language) {
-       query = query.where('preferred_language', '=', userFilters.preferred_language);
-     }
- 
-     if (userFilters.country) {
-       query = query.where('country', '=', userFilters.country);
-     }
- 
-     if (userFilters.state) {
-       query = query.where('state', '=', userFilters.state);
-     }
- 
-     // Handle age range
-     if (userFilters.age_min !== undefined) {
-       // User's max age should be greater than or equal to the filter's min age
-       query = query.where('age_max', '>=', userFilters.age_min);
-     }
- 
-     if (userFilters.age_max !== undefined) {
-       // User's min age should be less than or equal to the filter's max age
-       query = query.where('age_min', '<=', userFilters.age_max);
-     }
- 
-     // Add sorting by wait time (entry_time)
-     query = query.orderBy('entry_time', 'asc');
- 
-     // Execute the query
-     const match = await query.executeTakeFirst();
-     
-     if (!match) return undefined;
- 
-     // Update both users' status
-     await db
-       .updateTable('matching_queue')
-       .set({ status: 'matched' })
-       .where('user_id', 'in', [userId, match.user_id])
-       .execute()
- 
-     await chargeFilterUsage(userId, userFilters);
-     await chargeFilterUsage(match.user_id, userFilters);    
- 
-     return match;
- 
+    if (!await checkIfUserCanUseFilter(userId, userFilters)) {
+      await removeFromQueue(userId);
+      throw new Error('User does not have enough balance to use this filter');
+    }
+
+    // Query 1: Find users that match our filter requirements based on their profiles
+    let potentialMatchesQuery = db
+      .selectFrom('matching_queue')
+      .selectAll()
+      .where('user_id', '!=', userId)
+      .where('status', '=', 'waiting')
+      .where('call_type', '=', userFilters.call_type)
+      // Exclude blocked users
+      .where(
+        'user_id',
+        'not in',
+        db.selectFrom('user_blocks')
+          .select('blocked_id')
+          .where('blocker_id', '=', userId)
+      )
+      .where(
+        'user_id',
+        'not in',
+        db.selectFrom('user_blocks')
+          .select('blocker_id')
+          .where('blocked_id', '=', userId)
+      );
+
+    // Add profile-based filters
+    if (userFilters.gender) {
+      potentialMatchesQuery = potentialMatchesQuery.where('gender', '=', userFilters.gender);
+    }
+    if (userFilters.preferred_language) {
+      potentialMatchesQuery = potentialMatchesQuery.where('preferred_language', '=', userFilters.preferred_language);
+    }
+    if (userFilters.country) {
+      potentialMatchesQuery = potentialMatchesQuery.where('country', '=', userFilters.country);
+    }
+    if (userFilters.state) {
+      potentialMatchesQuery = potentialMatchesQuery.where('state', '=', userFilters.state);
+    }
+    if (userFilters.age) {
+      const [ageMin, ageMax] = userFilters.age.split('-').map(age => parseInt(age));
+      if (ageMin && !isNaN(ageMin)) {
+        potentialMatchesQuery = potentialMatchesQuery.where('age', '>=', ageMin);
+      }
+      if (ageMax && !isNaN(ageMax)) {
+        potentialMatchesQuery = potentialMatchesQuery.where('age', '<=', ageMax);
+      }
+    }
+
+    // Get IDs of potential matches
+    const potentialMatches = await potentialMatchesQuery.execute();
+    
+    if (potentialMatches.length === 0) {
+      return undefined;
+    }
+
+    // Get current user's queue entry
+    const currentUser = await db
+      .selectFrom('matching_queue')
+      .selectAll()
+      .where('user_id', '=', userId)
+      .executeTakeFirst();
+
+    if (!currentUser) {
+      throw new Error('Current user not found in queue');
+    }
+
+    // Query 2: From potential matches, find users whose filters match our profile
+    const match = await db
+      .selectFrom('matching_queue')
+      .selectAll()
+      .where('user_id', 'in', potentialMatches.map(m => m.user_id))
+      .where(eb => eb.or([
+        eb('filter_gender', 'is', null),
+        eb('filter_gender', '=', currentUser.gender)
+      ]))
+      .where(eb => eb.or([
+        eb('filter_language', 'is', null),
+        eb('filter_language', '=', currentUser.preferred_language)
+      ]))
+      .where(eb => eb.or([
+        eb('filter_country', 'is', null),
+        eb('filter_country', '=', currentUser.country)
+      ]))
+      .where(eb => eb.or([
+        eb('filter_state', 'is', null),
+        eb('filter_state', '=', currentUser.state)
+      ]))
+      .where(eb => eb.or([
+        eb.and([
+          eb('filter_age_min', 'is', null),
+          eb('filter_age_max', 'is', null)
+        ]),
+        eb.and([
+          eb('filter_age_min', '<=', currentUser.age),
+          eb('filter_age_max', '>=', currentUser.age)
+        ])
+      ]))
+      .orderBy('entry_time', 'asc')
+      .executeTakeFirst();
+
+    if (!match) return undefined;
+
+    // Update both users' status
+    await db
+      .updateTable('matching_queue')
+      .set({ status: 'matched' })
+      .where('user_id', 'in', [userId, match.user_id])
+      .execute();
+
+    await chargeFilterUsage(userId, userFilters);
+    await chargeFilterUsage(match.user_id, userFilters);    
+
+    return match;
+
   } catch (error) {
     console.error('Error finding match:', error);
     throw error;
   }
- }
-
-// // Find a match for user
-// export const findMatch = async (
-//  userId: number, 
-//  userFilters: MatchFilters
-// ): Promise<Selectable<MatchingQueue> | undefined> => {
-//  try {
-
-//     if(!await checkIfUserCanUseFilter(userId, userFilters)) {
-//       await removeFromQueue(userId)
-//       throw new Error('User does not have enough balance to use this filter');
-//     }
-
-//    // Get potential matches
-//    const potentialMatches = await db
-//      .selectFrom('matching_queue')
-//      .selectAll()
-//      .where('user_id', '!=', userId)
-//      .where('status', '=', 'waiting')
-//      .where('call_type', '=', userFilters.call_type) // Strict match on call_type
-//      .orderBy('entry_time', 'asc')
-//      .execute()
-
-//    // Find first compatible match
-//    for (const match of potentialMatches) {
-//      // Skip if blocked
-//      const isBlocked = await checkUserBlocks(userId, match.user_id)
-//      if (isBlocked) continue
-
-//      // Check if filters match
-//      if (!await areFiltersCompatible(userFilters, match)) continue
-     
-//      // Found match - update both users' status
-//      await db
-//        .updateTable('matching_queue')
-//        .set({ status: 'matched' })
-//        .where('user_id', 'in', [userId, match.user_id])
-//        .execute()
-
-//       await chargeFilterUsage(userId, userFilters)
-//       await chargeFilterUsage(match.user_id, userFilters)    
-
-//       return match
-//    }
-
-//    return undefined
-//  } catch (error) {
-//    console.error('Error finding match:', error);
-//    throw error;
-//  }
-// }
+}
 
 // Start new match
 export const startMatch = async (
@@ -395,72 +424,3 @@ export const startMatch = async (
    throw error;
  }
 }
-
-// // Helper: Check user blocks
-// const checkUserBlocks = async (
-//  user1Id: number, 
-//  user2Id: number
-// ): Promise<boolean> => {
-//  try {
-//    const block = await db
-//      .selectFrom('user_blocks')
-//      .selectAll()
-//      .where(eb => eb.or([
-//        eb.and([
-//          eb('blocker_id', '=', user1Id),
-//          eb('blocked_id', '=', user2Id)
-//        ]),
-//        eb.and([
-//          eb('blocker_id', '=', user2Id),
-//          eb('blocked_id', '=', user1Id)
-//        ])
-//      ]))
-//      .executeTakeFirst()
-
-//    return !!block
-//  } catch (error) {
-//    console.error('Error checking blocks:', error);
-//    throw error;
-//  }
-// }
-
-// // Helper: Check filter compatibility
-// const areFiltersCompatible = async (
-//  filters1: MatchFilters,
-//  queueEntry: Selectable<MatchingQueue>
-// ): Promise<boolean> => {
-//  try {
-//    const checkFilter = <T>(filter1: T | undefined, filter2: T | undefined): boolean => {
-//      if (filter1 && filter2 && filter1 !== filter2) return false
-//      return true
-//    }
-
-//    // Parse queue entry filters
-//    const filters2 = {
-//      gender: queueEntry.gender,
-//      preferred_language: queueEntry.preferred_language,
-//      country: queueEntry.country,
-//      state: queueEntry.state,
-//      interests: queueEntry.interests ? JSON.parse(queueEntry.interests as string) : undefined
-//    }
-
-//    // Check basic filters
-//    if (!checkFilter(filters1.gender, filters2.gender)) return false
-//    if (!checkFilter(filters1.preferred_language, filters2.preferred_language)) return false
-//    if (!checkFilter(filters1.country, filters2.country)) return false
-//    if (!checkFilter(filters1.state, filters2.state)) return false
-
-//    // Check interests if both specified
-//    if (filters1.interests?.length && filters2.interests?.length) {
-//      const commonInterests = filters1.interests.filter(
-//        interest => filters2.interests.includes(interest)
-//      )
-//      if (commonInterests.length === 0) return false
-//    }
-
-//    return true
-//  } catch (error) {
-//    console.error('Error checking filter compatibility:', error);
-//    throw error;
-//  }
-// }

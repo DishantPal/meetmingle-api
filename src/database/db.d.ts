@@ -90,12 +90,17 @@ export interface MatchHistory {
 }
 
 export interface MatchingQueue {
-  age_max: number | null;
-  age_min: number | null;
+  age: number | null;
   call_type: string;
   country: string | null;
   created_at: Generated<Date>;
   entry_time: Generated<Date>;
+  filter_age_max: number | null;
+  filter_age_min: number | null;
+  filter_country: string | null;
+  filter_gender: string | null;
+  filter_language: string | null;
+  filter_state: string | null;
   gender: string | null;
   id: Generated<number>;
   interests: Json | null;
