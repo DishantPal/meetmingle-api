@@ -104,6 +104,8 @@ const ProfileImageMaxSize = 5 * 1024 * 1024; // 5MB
 const updateUserProfileSchema = z.object({
     profile_name: z.string().min(1).max(100).optional()
         .openapi({ example: 'John Doe' }),
+    profile_image_url: z.string().optional()
+        .openapi({ example: 'https://example.com/image.png' }),
     profile_image: z.instanceof(File).optional().refine(
         (file) => {
             // If no file is provided, return true (valid)
