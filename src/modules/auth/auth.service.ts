@@ -116,3 +116,24 @@ export const deleteUserAccount = async (userId: number): Promise<void> => {
       .execute();
   });
 };
+
+export const getBlockedUsers = async (userId: number): Promise<Array<{
+  id: number,
+  profile_name: string | null,
+  profile_image_url: string | null
+}>> => {
+  const blockedUsers = await db
+    .selectFrom("user_blocks")
+    .innerJoin("users", "users.id", "user_blocks.blocked_id")
+    .innerJoin("user_profiles", "user_profiles.user_id", "users.id")
+    .select([
+      "users.id",
+      "user_profiles.profile_name",
+      "user_profiles.profile_image_url"
+    ])
+    .where("user_blocks.blocker_id", "=", userId)
+    .where("users.deleted_at", "is", null)
+    .execute()
+
+  return blockedUsers
+}

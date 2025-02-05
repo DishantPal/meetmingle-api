@@ -1,8 +1,8 @@
 import { CustomHono } from "@/types/app.js"
-import { AppError, createJsonBody, createSuccessRouteDefinition, defaultResponses, ERROR_CODES, sendSuccessWithAuthUser } from "@/utils/response.js";
+import { AppError, createJsonBody, createSuccessRouteDefinition, defaultResponses, ERROR_CODES, sendSuccess, sendSuccessWithAuthUser } from "@/utils/response.js";
 import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
-import { createAuthToken, createUser, deleteUserAccount, getUserWithProfileByEmail, getUserWithProfileById, updateUserProfile } from "./auth.service.js";
+import { createAuthToken, createUser, deleteUserAccount, getBlockedUsers, getUserWithProfileByEmail, getUserWithProfileById, updateUserProfile } from "./auth.service.js";
 import { StatusCodes } from "http-status-codes";
 import { isAuthenticated } from "@/middlewares/authenticated.js";
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js";
@@ -304,3 +304,37 @@ app.openapi(deleteAccountRoute, async (c) => {
 
     return sendSuccessWithAuthUser(c, { email: user.email }, 'Account deleted successfully');
 });
+
+// Blocked Users List
+const blockedUsersResponseSchema = z.object({
+    blocked_users: z.array(z.object({
+      id: z.number()
+        .openapi({ example: 123 }),
+      profile_name: z.string().nullable()
+        .openapi({ example: 'john_doe' }),
+      profile_image_url: z.string().nullable()
+        .openapi({ example: 'https://example.com/profile.jpg' })
+    }))
+  })
+  
+  const getBlockedUsersRoute = createRoute({
+    method: 'get',
+    path: '/me/blocked-users',
+    tags: [moduleTag],
+    security: [{ bearerAuth: [] }],
+    middleware: [isAuthenticated] as const,
+    responses: {
+      200: createSuccessRouteDefinition(blockedUsersResponseSchema, 'List of blocked users'),
+      ...defaultResponses
+    }
+  })
+  
+  app.openapi(getBlockedUsersRoute, async (c) => {
+    const currentUser = c.get('user').id
+  
+    const blockedUsers = await getBlockedUsers(currentUser)
+  
+    return sendSuccess(c, {
+      blocked_users: blockedUsers
+    }, 'Blocked users retrieved successfully')
+  })
