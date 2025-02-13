@@ -135,7 +135,7 @@ const updateUserProfileSchema = z.object({
         .openapi({ example: 'I love hiking and photography' }),
     dob: z.string().date().optional()
         .openapi({ example: '1990-01-01' }),
-    gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional()
+    gender: z.string().optional()
         .openapi({ example: 'male' }),
     country: z.string().optional()
         .openapi({ example: 'US' }),
