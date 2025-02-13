@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "dev_meetmingle_api",
+      name: "meetmingle_api",
       script: "npm",
       args: "run start",
     }
