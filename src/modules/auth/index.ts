@@ -76,7 +76,11 @@ app.openapi(signinRoute, async (c) => {
         new_user: newUser
     };
 
-    return sendSuccessWithAuthUser(c, data, 'Login Successful');
+    const message = newUser
+        ? 'Signup Successfull. Please complete your profile to start matching.'
+        : 'Login Successfull';
+
+    return sendSuccessWithAuthUser(c, data, message);
     // return sendSuccessWithAuthUser<typeof signinResponseBodySchema, StatusCodes.OK>(c, data, 'Login Successful', StatusCodes.OK);
 })
 
