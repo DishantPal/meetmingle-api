@@ -31,6 +31,7 @@ interface AuthenticatedSocket extends Socket {
 
 // Store connected users and their socket IDs
 const connectedUsers = new Map<number, string>();
+const connectedUsersRooms = new Map<number, string>();
 
 export const setupMatchSocket = (app: CustomHono) => {
   const io = new Server({
@@ -166,6 +167,9 @@ export const setupMatchSocket = (app: CustomHono) => {
             canStartSignaling: [userId, match.user_id].map(Number).sort((a, b) => a - b)[0] === match.user_id
           });
 
+          connectedUsersRooms.set(userId, roomId);
+          connectedUsersRooms.set(match.user_id, roomId);
+
           // Record match in history
           await startMatch(userId, match.user_id, filters.call_type);
         }
@@ -257,15 +261,9 @@ export const setupMatchSocket = (app: CustomHono) => {
       console.log("endSession:", { roomId, userId });
 
       try {
-        // Clear timeout if in finding state
-        // if (socket.data.matchTimeout) {
-        //   clearTimeout(socket.data.matchTimeout);
-        // }
-
-        // Remove from queue if in finding state
-        // if (socket.data.matchingState === 'finding') {
-          await removeFromQueue(userId);
-        // }
+        await removeFromQueue(userId);
+        
+        connectedUsersRooms.delete(userId);
 
         // If in room, notify other user
         if (roomId) {
@@ -276,6 +274,7 @@ export const setupMatchSocket = (app: CustomHono) => {
 
           // Leave room
           socket.leave(roomId);
+
         }
 
         // Reset state
@@ -292,26 +291,22 @@ export const setupMatchSocket = (app: CustomHono) => {
     socket.on('disconnect', async () => {
       console.log("disconnect:", { userId });
 
+
       try {
         connectedUsers.delete(userId);
 
-        // if (socket.data.matchTimeout) {
-        //   clearTimeout(socket.data.matchTimeout);
-        // }
+        await removeFromQueue(userId);
 
-        // if (socket.data.matchingState === 'finding') {
-          await removeFromQueue(userId);
-        // }
+        const matchedRoomId = connectedUsersRooms.get(userId);
 
-        // Notify rooms if any
-        socket.rooms.forEach(roomId => {
-          if (roomId.startsWith('match_')) {
-            socket.to(roomId).emit('endSession', {
-              userId,
-              reason: 'user_disconnected'
-            });
-          }
-        });
+        if (matchedRoomId) {
+          socket.to(matchedRoomId).emit('endSession', {
+            userId,
+            reason: 'user_ended'
+          });
+        }
+
+        
       } catch (error) {
         console.error('Error in disconnect:', error);
       }
