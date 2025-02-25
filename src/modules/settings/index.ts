@@ -212,7 +212,8 @@ app.openapi(getSettingsMergedReasonsRoute, async (c) => {
   const genderImages = {
     'female': `${config.app.img_url}/gender/female.png`,
     'male': `${config.app.img_url}/gender/male.png`,
-    'others': `${config.app.img_url}/gender/others.png`
+    'others': `${config.app.img_url}/gender/others.png`,
+    'other': `${config.app.img_url}/gender/others.png`
   } as const;
 
   // @ts-ignore

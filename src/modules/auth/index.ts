@@ -76,7 +76,11 @@ app.openapi(signinRoute, async (c) => {
         new_user: newUser
     };
 
-    return sendSuccessWithAuthUser(c, data, 'Login Successful');
+    const message = newUser
+        ? 'Signup Completed. Complete your profile to start matching.'
+        : 'Login Successfull';
+
+    return sendSuccessWithAuthUser(c, data, message);
     // return sendSuccessWithAuthUser<typeof signinResponseBodySchema, StatusCodes.OK>(c, data, 'Login Successful', StatusCodes.OK);
 })
 
@@ -135,7 +139,7 @@ const updateUserProfileSchema = z.object({
         .openapi({ example: 'I love hiking and photography' }),
     dob: z.string().date().optional()
         .openapi({ example: '1990-01-01' }),
-    gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional()
+    gender: z.string().optional()
         .openapi({ example: 'male' }),
     country: z.string().optional()
         .openapi({ example: 'US' }),
