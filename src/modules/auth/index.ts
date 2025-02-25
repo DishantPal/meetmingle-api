@@ -2,7 +2,7 @@ import { CustomHono } from "@/types/app.js"
 import { AppError, createJsonBody, createSuccessRouteDefinition, defaultResponses, ERROR_CODES, sendSuccess, sendSuccessWithAuthUser } from "@/utils/response.js";
 import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
-import { createAuthToken, createUser, deleteUserAccount, getBlockedUsers, getUserWithProfileByEmail, getUserWithProfileById, updateUserProfile } from "./auth.service.js";
+import { createAuthToken, createUser, deleteUserAccount, getBlockedUsers, getUserCallStats, getUserWithProfileByEmail, getUserWithProfileById, updateUserProfile } from "./auth.service.js";
 import { StatusCodes } from "http-status-codes";
 import { isAuthenticated } from "@/middlewares/authenticated.js";
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js";
@@ -338,3 +338,28 @@ const blockedUsersResponseSchema = z.object({
       blocked_users: blockedUsers
     }, 'Blocked users retrieved successfully')
   })
+
+const userStatsResponseSchema = z.object({
+    daily_call_count: z.number()
+      .openapi({ example: 5 })
+  });
+  
+  const userStatsRoute = createRoute({
+    method: 'get',
+    path: '/me/stats',
+    tags: [moduleTag],
+    middleware: [isAuthenticated] as const,
+    security: [{ bearerAuth: [] }],
+    responses: {
+      200: createSuccessRouteDefinition(userStatsResponseSchema, 'User daily call statistics'),
+      ...defaultResponses
+    },
+  });
+  
+  app.openapi(userStatsRoute, async (c) => {
+    const userId = c.get('user').id;
+    
+    const callStats = await getUserCallStats(userId);
+    
+    return sendSuccess(c, {callStats}, 'User daily call statistics retrieved successfully');
+  });

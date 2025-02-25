@@ -137,3 +137,18 @@ export const getBlockedUsers = async (userId: number): Promise<Array<{
 
   return blockedUsers
 }
+
+export const getUserCallStats = async (userId: number): Promise<{
+  daily_call_count: number;
+}> => {
+
+  const userDailyCallCount = await db
+    .selectFrom("match_history")
+    .select(db.fn.count<number>("id").as("count"))
+    .where(sql<boolean>`(user1_id = ${userId} OR user2_id = ${userId}) and start_time >= CURRENT_DATE() AND start_time < DATE_ADD(CURRENT_DATE(), INTERVAL 1 DAY)`)
+    .executeTakeFirst()
+
+  return {
+    daily_call_count: Number(userDailyCallCount?.count ?? 0)
+  };
+};
