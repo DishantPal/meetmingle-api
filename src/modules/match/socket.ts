@@ -262,6 +262,8 @@ export const setupMatchSocket = (app: CustomHono) => {
 
       try {
         await removeFromQueue(userId);
+
+        const matchedRoomId = connectedUsersRooms.get(userId);
         
         connectedUsersRooms.delete(userId);
 
@@ -275,6 +277,16 @@ export const setupMatchSocket = (app: CustomHono) => {
           // Leave room
           socket.leave(roomId);
 
+        }
+
+        if (roomId == '' && matchedRoomId) {
+
+          socket.to(matchedRoomId).emit('endSession', {
+            userId,
+            reason: 'user_ended'
+          });
+          
+          socket.leave(roomId);
         }
 
         // Reset state
