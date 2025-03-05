@@ -2,7 +2,7 @@ import { CustomHono } from "@/types/app.js"
 import { AppError, createJsonBody, createSuccessRouteDefinition, defaultResponses, ERROR_CODES, sendSuccess, sendSuccessWithAuthUser } from "@/utils/response.js";
 import { createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
-import { createAuthToken, createUser, deleteUserAccount, getBlockedUsers, getUserCallStats, getUserWithProfileByEmail, getUserWithProfileById, updateUserProfile } from "./auth.service.js";
+import { createAuthToken, createUser, deleteUserAccount, getBlockedUsers, getUserCallStats, getUserWithProfileByEmail, getUserWithProfileById, updateProfileCompletionStatus, updateUserProfile } from "./auth.service.js";
 import { StatusCodes } from "http-status-codes";
 import { isAuthenticated } from "@/middlewares/authenticated.js";
 import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js";
@@ -170,6 +170,8 @@ const updateUserProfileSchema = z.object({
         .max(50)
         .optional()
         .openapi({ example: 'Asia/Kolkata' }),
+    profile_completed: z.coerce.boolean().optional()
+        .openapi({ example: false }),
 });
 
 const profileUpdateResponseSchema = z.object({})
@@ -219,7 +221,7 @@ const profileFormDataToJson = (formData: FormData): Partial<Insertable<UserProfi
         const typedKey = key as keyof UserProfiles;
 
         // Handle non-array fields
-        if (['is_drinking', 'is_smoking', 'is_fitness_enthusiast'].includes(key)) {
+        if (['is_drinking', 'is_smoking', 'is_fitness_enthusiast', 'profile_completed'].includes(key)) {
             updateData[typedKey] = (value === 'true' ? 1 : 0) as any;
         } else {
             updateData[typedKey] = value as any;
@@ -259,6 +261,8 @@ app.openapi(updateProfileRoute, async (c) => {
 
     // Update profile
     await updateUserProfile(userId, updateData);
+    
+    await updateProfileCompletionStatus(userId);
 
     // update context user here
     const user = await getUserWithProfileById(Number(userId))

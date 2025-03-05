@@ -23,12 +23,29 @@ export type JsonPrimitive = boolean | number | string | null;
 
 export type JsonValue = JsonArray | JsonObject | JsonPrimitive;
 
+export interface Admins {
+  created_at: Date | null;
+  email: string;
+  email_verified_at: Date | null;
+  id: Generated<number>;
+  name: string;
+  password: string;
+  remember_token: string | null;
+  updated_at: Date | null;
+}
+
 export interface AppSettings {
   created_at: Generated<Date>;
   group: string;
   id: Generated<number>;
   key: string;
   updated_at: Date;
+  value: string;
+}
+
+export interface Cache {
+  expiration: number;
+  key: string;
   value: string;
 }
 
@@ -146,6 +163,15 @@ export interface Rewards {
   updated_at: Generated<Date>;
 }
 
+export interface Sessions {
+  id: string;
+  ip_address: string | null;
+  last_activity: number;
+  payload: string;
+  user_agent: string | null;
+  user_id: number | null;
+}
+
 export interface States {
   code: string;
   country_code: string;
@@ -238,6 +264,7 @@ export interface UserProfiles {
   personality_traits: Json | null;
   pet_info: string | null;
   preferred_language: string | null;
+  profile_completed: Generated<number>;
   profile_completion_percentage: Generated<number | null>;
   profile_image_url: string | null;
   profile_name: string | null;
@@ -298,7 +325,9 @@ export interface UserSubscriptions {
 }
 
 export interface DB {
+  admins: Admins;
   app_settings: AppSettings;
+  cache: Cache;
   coin_packages: CoinPackages;
   content_blocks: ContentBlocks;
   countries: Countries;
@@ -308,6 +337,7 @@ export interface DB {
   pages: Pages;
   report_reasons: ReportReasons;
   rewards: Rewards;
+  sessions: Sessions;
   states: States;
   subscription_charges: SubscriptionCharges;
   subscription_plan_features: SubscriptionPlanFeatures;

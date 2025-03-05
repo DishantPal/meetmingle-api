@@ -102,6 +102,77 @@ export const updateUserProfile = async (userId: number, profileData: Partial<Ins
   return;
 };
 
+export async function updateProfileCompletionStatus(userId: number): Promise<boolean> {
+  const profile = await db
+    .selectFrom('user_profiles')
+    .where('user_id', '=', userId)
+    .selectAll()
+    .executeTakeFirst();
+
+  if (!profile) {
+    return false;
+  }
+
+  const requiredFields = [
+    'profile_name',
+    'profile_image_url',
+    'bio',
+    'dob',
+    'gender',
+    'country',
+    'state',
+    'preferred_language',
+    'relationship_status',
+    'interests',
+    'looking_for',
+    'personality_traits'
+  ];
+
+  const isComplete = requiredFields.every(field => {
+    const value = profile[field as keyof typeof profile];
+    
+    if (field === 'interests' || field === 'looking_for' || field === 'personality_traits') {
+      return value !== null && Array.isArray(value) && value.length > 0;
+    }
+    
+    return value !== null && value !== undefined && value !== '';
+  });
+
+  await db
+    .updateTable('user_profiles')
+    .set({
+      profile_completed: isComplete ? 1 : 0,
+      profile_completion_percentage: calculateCompletionPercentage(profile, requiredFields)
+    })
+    .where('user_id', '=', userId)
+    .execute();
+
+  return isComplete;
+}
+
+function calculateCompletionPercentage(
+  profile: Record<string, any>,
+  requiredFields: string[]
+): number {
+  if (!profile) return 0;
+
+  let filledFieldsCount = 0;
+
+  for (const field of requiredFields) {
+    const value = profile[field];
+    
+    if (field === 'interests' || field === 'looking_for' || field === 'personality_traits') {
+      if (value !== null && Array.isArray(value) && value.length > 0) {
+        filledFieldsCount++;
+      }
+    } else if (value !== null && value !== undefined && value !== '') {
+      filledFieldsCount++;
+    }
+  }
+
+  return Math.round((filledFieldsCount / requiredFields.length) * 100);
+}
+
 export const deleteUserAccount = async (userId: number): Promise<void> => {
   await db.transaction().execute(async (trx) => {
     const randomString = Math.random().toString(36).substring(2, 8);
