@@ -1,9 +1,14 @@
 import { db } from "@/database/database.js";
 import { sendOneSignalNotification } from "@/utils/onesignal.js";
 import { PUSH_NOTIFICATION_TEMPLATES } from "@/config/pushNotificationTemplates.js";
+import { sql } from "kysely";
 
 export async function sendSubscriptionRenewalNotifications(): Promise<void> {
     try {
+        // Get the date 3 days from now
+        const threeDaysFromNow = new Date();
+        threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+
         // Find users with subscriptions ending in 3 days
         const renewingUsers = await db
             .selectFrom("user_subscriptions")
@@ -15,7 +20,7 @@ export async function sendSubscriptionRenewalNotifications(): Promise<void> {
             ])
             .where("user_subscriptions.status", "=", "active")
             .where("user_subscriptions.auto_renewal", "=", 1)
-            .where("user_subscriptions.end_date", "<=", db.fn.addDays(3, db.fn.now()))
+            .where(sql`DATE(user_subscriptions.end_date)`, "=", sql`DATE(${threeDaysFromNow})`)
             .where("users.deleted_at", "is", null)
             .execute();
 
