@@ -9,6 +9,9 @@ import { CustomHonoAppFactory } from "@/utils/customHonoAppFactory.js";
 import { UserProfiles } from "@/database/db.js";
 import storeFile from "@/utils/storeFile.js";
 import { Insertable } from "kysely";
+import { sendOneSignalNotification } from "@/utils/onesignal.js";
+import { PUSH_NOTIFICATION_TEMPLATES } from "@/config/pushNotificationTemplates.js";
+import { config } from "@/config/index.js";
 
 const app = CustomHonoAppFactory();
 export { app as authRoutes };
@@ -78,7 +81,18 @@ app.openapi(signinRoute, async (c) => {
 
     const message = newUser
         ? 'Signup Completed. Complete your profile to start matching.'
-        : 'Login Successfull';
+        : 'Login Successful';
+
+    if (newUser && authUser.email) {
+        const template = PUSH_NOTIFICATION_TEMPLATES.welcome_message;
+        sendOneSignalNotification(
+            authUser.email,
+            template.title.replace('[App Name]', config.app.name),
+            template.content,
+            template.url,
+            template.delay
+        );
+    }
 
     return sendSuccessWithAuthUser(c, data, message);
     // return sendSuccessWithAuthUser<typeof signinResponseBodySchema, StatusCodes.OK>(c, data, 'Login Successful', StatusCodes.OK);
@@ -261,7 +275,7 @@ app.openapi(updateProfileRoute, async (c) => {
 
     // Update profile
     await updateUserProfile(userId, updateData);
-    
+
     await updateProfileCompletionStatus(userId);
 
     // update context user here
@@ -316,58 +330,58 @@ app.openapi(deleteAccountRoute, async (c) => {
 // Blocked Users List
 const blockedUsersResponseSchema = z.object({
     blocked_users: z.array(z.object({
-      id: z.number()
-        .openapi({ example: 123 }),
-      profile_name: z.string().nullable()
-        .openapi({ example: 'john_doe' }),
-      profile_image_url: z.string().nullable()
-        .openapi({ example: 'https://example.com/profile.jpg' })
+        id: z.number()
+            .openapi({ example: 123 }),
+        profile_name: z.string().nullable()
+            .openapi({ example: 'john_doe' }),
+        profile_image_url: z.string().nullable()
+            .openapi({ example: 'https://example.com/profile.jpg' })
     }))
-  })
-  
-  const getBlockedUsersRoute = createRoute({
+})
+
+const getBlockedUsersRoute = createRoute({
     method: 'get',
     path: '/me/blocked-users',
     tags: [moduleTag],
     security: [{ bearerAuth: [] }],
     middleware: [isAuthenticated] as const,
     responses: {
-      200: createSuccessRouteDefinition(blockedUsersResponseSchema, 'List of blocked users'),
-      ...defaultResponses
+        200: createSuccessRouteDefinition(blockedUsersResponseSchema, 'List of blocked users'),
+        ...defaultResponses
     }
-  })
-  
-  app.openapi(getBlockedUsersRoute, async (c) => {
+})
+
+app.openapi(getBlockedUsersRoute, async (c) => {
     const currentUser = c.get('user').id
-  
+
     const blockedUsers = await getBlockedUsers(currentUser)
-  
+
     return sendSuccess(c, {
-      blocked_users: blockedUsers
+        blocked_users: blockedUsers
     }, 'Blocked users retrieved successfully')
-  })
+})
 
 const userStatsResponseSchema = z.object({
     daily_call_count: z.number()
-      .openapi({ example: 5 })
-  });
-  
-  const userStatsRoute = createRoute({
+        .openapi({ example: 5 })
+});
+
+const userStatsRoute = createRoute({
     method: 'get',
     path: '/me/stats',
     tags: [moduleTag],
     middleware: [isAuthenticated] as const,
     security: [{ bearerAuth: [] }],
     responses: {
-      200: createSuccessRouteDefinition(userStatsResponseSchema, 'User daily call statistics'),
-      ...defaultResponses
+        200: createSuccessRouteDefinition(userStatsResponseSchema, 'User daily call statistics'),
+        ...defaultResponses
     },
-  });
-  
-  app.openapi(userStatsRoute, async (c) => {
+});
+
+app.openapi(userStatsRoute, async (c) => {
     const userId = c.get('user').id;
-    
+
     const callStats = await getUserCallStats(userId);
-    
-    return sendSuccess(c, {callStats}, 'User daily call statistics retrieved successfully');
-  });
+
+    return sendSuccess(c, { callStats }, 'User daily call statistics retrieved successfully');
+});

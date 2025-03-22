@@ -23,17 +23,29 @@ const calculateAge = (dob: Date): number => {
   const birthDate = new Date(dob);
   let age = today.getFullYear() - birthDate.getFullYear();
   const monthDiff = today.getMonth() - birthDate.getMonth();
-  
+
   if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
     age--;
   }
-  
+
   return age;
 };
 
+export const getUserEmailFromId = async (
+  userId: number
+): Promise<string | null | undefined> => {
+  const user = await db
+    .selectFrom('users')
+    .select('email')
+    .where('id', '=', userId)
+    .executeTakeFirst()
+
+  return user?.email;
+}
+
 // Add user to matching queue
 export const addToMatchingQueue = async (
-  userId: number, 
+  userId: number,
   filters: MatchFilters
 ): Promise<void> => {
   try {
@@ -104,19 +116,19 @@ export const addToMatchingQueue = async (
 
 // Remove user from queue
 export const removeFromQueue = async (userId: number): Promise<void> => {
- try {
-   await db
-     .deleteFrom('matching_queue')
-     .where('user_id', '=', userId)
-     .execute()
- } catch (error) {
-   console.error('Error removing from queue:', error);
-   throw error;
- }
+  try {
+    await db
+      .deleteFrom('matching_queue')
+      .where('user_id', '=', userId)
+      .execute()
+  } catch (error) {
+    console.error('Error removing from queue:', error);
+    throw error;
+  }
 }
 
 export const createMatchCoinTransactionForFilter = async (
-  userId: number, 
+  userId: number,
   filter: 'age' | 'gender' | 'language' | 'state' | 'country'
 ): Promise<void> => {
 
@@ -128,7 +140,7 @@ export const createMatchCoinTransactionForFilter = async (
     .executeTakeFirst()
 
   const filterPrice = filterPriceFromDb ? parseInt(filterPriceFromDb.value) : 0;
-  
+
   if (filterPrice <= 0) {
     return
   }
@@ -136,7 +148,7 @@ export const createMatchCoinTransactionForFilter = async (
   await db.transaction().execute(async (trx) => {
     // Generate transaction ID using utility
     const transactionId = generateId()
-    
+
     // Get current balance
     const lastTransaction = await trx
       .selectFrom("user_coin_transactions")
@@ -173,7 +185,7 @@ export const createMatchCoinTransactionForFilter = async (
 }
 
 export const chargeFilterUsage = async (
-  userId: number, 
+  userId: number,
   userFilters: MatchFilters
 ) => {
 
@@ -213,22 +225,22 @@ export const getUserCoinBalance = async (userId: number): Promise<number> => {
 export const checkIfUserCanUseFilter = async (userId: number, userFilters: MatchFilters): Promise<boolean> => {
 
   const userBalance = await getUserCoinBalance(userId)
-  
+
   const filterPriceCheck = async (filter: 'age' | 'gender' | 'language' | 'state' | 'country') => {
     const filterPriceFromDb = await db
-        .selectFrom('app_settings')
-        .select('value')
-        .where('group', '=', 'filter')
-        .where('key', '=', `${filter}_filter_price`)
-        .executeTakeFirst()
-  
-      const filterPrice = filterPriceFromDb ? parseInt(filterPriceFromDb.value) : 0;
-  
-      if (userBalance < filterPrice) {
-        return false
-      } else {
-        return true
-      }
+      .selectFrom('app_settings')
+      .select('value')
+      .where('group', '=', 'filter')
+      .where('key', '=', `${filter}_filter_price`)
+      .executeTakeFirst()
+
+    const filterPrice = filterPriceFromDb ? parseInt(filterPriceFromDb.value) : 0;
+
+    if (userBalance < filterPrice) {
+      return false
+    } else {
+      return true
+    }
   }
 
   if (userFilters.gender) {
@@ -267,7 +279,7 @@ export const checkIfUserCanUseFilter = async (userId: number, userFilters: Match
 
 // Find match
 export const findMatch = async (
-  userId: number, 
+  userId: number,
   userFilters: MatchFilters
 ): Promise<Selectable<MatchingQueue> | undefined> => {
   try {
@@ -324,7 +336,7 @@ export const findMatch = async (
 
     // Get IDs of potential matches
     const potentialMatches = await potentialMatchesQuery.execute();
-    
+
     if (potentialMatches.length === 0) {
       return undefined;
     }
@@ -384,7 +396,7 @@ export const findMatch = async (
       .execute();
 
     await chargeFilterUsage(userId, userFilters);
-    await chargeFilterUsage(match.user_id, userFilters);    
+    await chargeFilterUsage(match.user_id, userFilters);
 
     return match;
 
@@ -396,31 +408,31 @@ export const findMatch = async (
 
 // Start new match
 export const startMatch = async (
- user1Id: number,
- user2Id: number,
- callType: 'video' | 'audio'
+  user1Id: number,
+  user2Id: number,
+  callType: 'video' | 'audio'
 ): Promise<void> => {
- try {
-   await db.transaction().execute(async (trx) => {
-     // Create match history entry
-     await trx
-       .insertInto('match_history')
-       .values({
-         user1_id: user1Id,
-         user2_id: user2Id,
-         call_type: callType,
-         start_time: new Date()
-       })
-       .execute()
+  try {
+    await db.transaction().execute(async (trx) => {
+      // Create match history entry
+      await trx
+        .insertInto('match_history')
+        .values({
+          user1_id: user1Id,
+          user2_id: user2Id,
+          call_type: callType,
+          start_time: new Date()
+        })
+        .execute()
 
-     // Remove both users from queue
-     await trx
-       .deleteFrom('matching_queue')
-       .where('user_id', 'in', [user1Id, user2Id])
-       .execute()
-   })
- } catch (error) {
-   console.error('Error starting match:', error);
-   throw error;
- }
+      // Remove both users from queue
+      await trx
+        .deleteFrom('matching_queue')
+        .where('user_id', 'in', [user1Id, user2Id])
+        .execute()
+    })
+  } catch (error) {
+    console.error('Error starting match:', error);
+    throw error;
+  }
 }

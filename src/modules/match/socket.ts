@@ -1,8 +1,11 @@
 // src/modules/match/socket.ts
 import { Server, Socket } from 'socket.io';
 import { CustomHono } from '@/types/app.js';
-import { addToMatchingQueue, removeFromQueue, findMatch, startMatch } from './match.service.js';
+import { addToMatchingQueue, removeFromQueue, findMatch, startMatch, getUserEmailFromId } from './match.service.js';
 import { decodeSocketAuthToken } from './socketAuth.service.js';
+import { PUSH_NOTIFICATION_TEMPLATES } from '@/config/pushNotificationTemplates.js';
+import { sendOneSignalNotification } from '@/utils/onesignal.js';
+import { getRandomFemaleName } from '@/utils/generateRandomFemaleName.js';
 
 interface MatchFilters {
   call_type: 'video' | 'audio';
@@ -48,7 +51,7 @@ export const setupMatchSocket = (app: CustomHono) => {
       if (!token) return next(new Error('Token required'));
 
       const decoded = await decodeSocketAuthToken(token) as SocketUser;
-      if(!decoded?.user) return next(new Error('Invalid token'));
+      if (!decoded?.user) return next(new Error('Invalid token'));
 
       socket.data.user = decoded?.user;
       // socket.data.matchingState = 'idle';
@@ -71,7 +74,7 @@ export const setupMatchSocket = (app: CustomHono) => {
     socket.on('findMatch', async (filters: MatchFilters) => {
       console.log("findMatch called:", { filters, userId });
 
-      if(filters.filters) filters = { ...filters, ...filters.filters }
+      if (filters.filters) filters = { ...filters, ...filters.filters }
 
       try {
         if (!filters.call_type || !['video', 'audio'].includes(filters.call_type)) {
@@ -81,9 +84,9 @@ export const setupMatchSocket = (app: CustomHono) => {
 
         // Add to matching queue
         try {
-          await addToMatchingQueue(userId, filters);          
+          await addToMatchingQueue(userId, filters);
         } catch (error: any) {
-          if(error.message == 'User already in queue') {
+          if (error.message == 'User already in queue') {
             socket.emit('error', { message: 'User already in queue' });
           }
 
@@ -93,9 +96,9 @@ export const setupMatchSocket = (app: CustomHono) => {
         // Try to find a match
         let match;
         try {
-          match = await findMatch(userId, filters);        
+          match = await findMatch(userId, filters);
         } catch (error: any) {
-          if(error.message == 'User does not have enough balance to use this filter') {
+          if (error.message == 'User does not have enough balance to use this filter') {
             socket.emit('error', { message: 'User does not have enough balance to use this filter' });
           }
 
@@ -106,7 +109,7 @@ export const setupMatchSocket = (app: CustomHono) => {
         console.log("🚀 ~ socket.on ~ match:", match)
 
         if (match) {
-          
+
           const matchedSocketId = connectedUsers.get(match.user_id);
 
           console.log("🚀 ~ socket.on ~ matchedSocketId:", matchedSocketId)
@@ -115,8 +118,8 @@ export const setupMatchSocket = (app: CustomHono) => {
             return;
           }
 
-          socket.emit('xyz', {test: 123});
-          io.to(matchedSocketId).emit('xyz', {test: 456})
+          socket.emit('xyz', { test: 123 });
+          io.to(matchedSocketId).emit('xyz', { test: 456 })
 
           // Create room with sorted user IDs for consistency
           const [smallerId, largerId] = [userId, match.user_id]
@@ -207,7 +210,7 @@ export const setupMatchSocket = (app: CustomHono) => {
         });
       }
     });
-    
+
     // Update the event handler
     socket.on('webrtcSignal', (data: {
       signal: any;
@@ -257,14 +260,14 @@ export const setupMatchSocket = (app: CustomHono) => {
     });
 
     // Handle end session
-    socket.on('endSession', async ({roomId}) => {
+    socket.on('endSession', async ({ roomId }) => {
       console.log("endSession:", { roomId, userId });
 
       try {
         await removeFromQueue(userId);
 
         const matchedRoomId = connectedUsersRooms.get(userId);
-        
+
         connectedUsersRooms.delete(userId);
 
         // If in room, notify other user
@@ -285,7 +288,7 @@ export const setupMatchSocket = (app: CustomHono) => {
             userId,
             reason: 'user_ended'
           });
-          
+
           socket.leave(roomId);
         }
 
@@ -318,7 +321,21 @@ export const setupMatchSocket = (app: CustomHono) => {
           });
         }
 
-        
+        const userEmail = await getUserEmailFromId(userId);
+
+        if (userEmail) {
+          const femaleName = getRandomFemaleName();
+          const template = PUSH_NOTIFICATION_TEMPLATES.female_waiting;
+          sendOneSignalNotification(
+            userEmail,
+            template.title.replace('[FEMALE_NAME]', femaleName),
+            template.content,
+            template.url,
+            template.delay
+          );
+        }
+
+
       } catch (error) {
         console.error('Error in disconnect:', error);
       }

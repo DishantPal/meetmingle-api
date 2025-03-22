@@ -5,10 +5,10 @@ import { z } from 'zod'
 // Define a schema for environment variables
 const envSchema = z.object({
     PORT: z.coerce.number().default(3000),
-    
+
     APP_NAME: z.string(),
     APP_KEY: z.string(),
-    APP_ENV: z.enum(['local', 'production', 'development','test']),
+    APP_ENV: z.enum(['local', 'production', 'development', 'test']),
     APP_DEBUG: z.string().transform((val) => val === 'true'),
     APP_TIMEZONE: z.string().default('UTC'),
     APP_URL: z.string().url(),
@@ -16,15 +16,20 @@ const envSchema = z.object({
     DATABASE_URL: z.string(),
 
     JWT_SECRET: z.string(),
-    
-    IMG_URL: z.string()
-    
+
+    IMG_URL: z.string(),
+
+    ONESIGNAL_APP_ID: z.string(),
+    ONESIGNAL_REST_API_KEY: z.string(),
+
+
+
     // Uncomment if using Redis
     // REDIS_CLIENT: z.string().optional(),
     // REDIS_HOST: z.string().optional(),
     // REDIS_PASSWORD: z.string().optional(),
     // REDIS_PORT: z.string().optional(),
-    
+
     // Uncomment if using Mail
     // MAIL_MAILER: z.string().optional(),
     // MAIL_HOST: z.string().optional(),
@@ -60,6 +65,10 @@ export const config = {
     },
     jwt: {
         secret: parsedEnv.data.JWT_SECRET
+    },
+    onesignal: {
+        APP_ID: parsedEnv.data.ONESIGNAL_APP_ID,
+        REST_API_KEY: parsedEnv.data.ONESIGNAL_REST_API_KEY,
     }
     // Uncomment and add Redis configuration if needed
     // redis: {
