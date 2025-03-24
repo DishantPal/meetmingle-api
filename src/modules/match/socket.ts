@@ -198,8 +198,10 @@ export const setupMatchSocket = (app: CustomHono) => {
       });
 
       // if (socket.data.matchingState !== 'in_call') return;
-
+      console.log('connectedUsers in exchangeData')
+      console.log(connectedUsers)
       const targetSocketId = connectedUsers.get(data.to);
+      console.log({ from: 'exchangeData', data: data.data, targetSocketId, data_to: data.to, type: data.type, room: data.roomId })
       if (targetSocketId) {
         io.to(targetSocketId).emit('exchangeData', {
           data: data.data,
@@ -223,8 +225,11 @@ export const setupMatchSocket = (app: CustomHono) => {
       });
 
       // if (socket.data.matchingState !== 'in_call') return;
+      console.log('connectedUsers in webrtcSignal')
+      console.log(connectedUsers)
 
       const targetSocketId = connectedUsers.get(data.to);
+      console.log({ from: 'webrtcSignal', signal: data.signal, targetSocketId, data_to: data.to, type: data.type, room: data.roomId })
       if (targetSocketId) {
         io.to(targetSocketId).emit('webrtcSignal', {
           signal: data.signal,
@@ -247,7 +252,11 @@ export const setupMatchSocket = (app: CustomHono) => {
         roomId: data.roomId, to: data.to, type: data.type
       });
 
+      console.log('connectedUsers in exchangeIceCandidate')
+      console.log(connectedUsers)
+
       const targetSocketId = connectedUsers.get(data.to);
+      console.log({ from: 'exchangeIceCandidate', signal: data.signal, targetSocketId, data_to: data.to, type: data.type, room: data.roomId })
       if (targetSocketId) {
         io.to(targetSocketId).emit('exchangeIceCandidate', {
           signal: data.signal,
@@ -328,7 +337,7 @@ export const setupMatchSocket = (app: CustomHono) => {
           const template = PUSH_NOTIFICATION_TEMPLATES.female_waiting;
           sendOneSignalNotification(
             userEmail,
-            template.title.replace('[FEMALE_NAME]', femaleName),
+            template.title.replace('[FEMALE NAME]', femaleName),
             template.content,
             template.url,
             template.delay
