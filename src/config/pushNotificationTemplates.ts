@@ -32,7 +32,7 @@ export const PUSH_NOTIFICATION_TEMPLATES = {
     // Sent from cron
     "daily_coin_collection": {
         "title": "Free Coins Available! ✨",
-        "content": "Your daily reward is ready! Join a free call today and collect 20 bonus coins.",
+        "content": "Your daily reward is ready! Join a free call today and collect bonus coins.",
         "delay": 0,
         "url": "https://meetmingle.onelink.me/earn"
     }
