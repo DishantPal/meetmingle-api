@@ -1,7 +1,7 @@
-import cron, { CronJob } from 'cron';
-import sendLowCoinAlertNotifications from './cron/sendLowCoinAlertNotifications.js';
-import sendSubscriptionRenewalNotifications from './cron/sendSubscriptionRenewalNotifications.js';
-import sendDailyCoinCollectionNotifications from './cron/sendDailyCoinCollectionNotifications.js';
+import { CronJob } from 'cron';
+import sendLowCoinAlertNotifications from './cronFunctions/sendLowCoinAlertNotifications.js';
+import sendSubscriptionRenewalNotifications from './cronFunctions/sendSubscriptionRenewalNotifications.js';
+import sendDailyCoinCollectionNotifications from './cronFunctions/sendDailyCoinCollectionNotifications.js';
 
 // Low coin alert - Run daily at 10:00 AM
 CronJob.from({
